@@ -8,7 +8,7 @@ import { logger } from '../logger.js';
 import { signToken } from './jwt.js';
 import { validateUsername, validatePasswordLogin } from '../validation.js';
 
-export function login(req, res, next) {
+export function login(req, res) {
   try {
     const uCheck = validateUsername(req.body?.username);
     if (!uCheck.ok) return res.status(400).json({ error: uCheck.error });
@@ -58,7 +58,7 @@ export function login(req, res, next) {
   }
 }
 
-export function me(req, res, next) {
+export function me(req, res) {
   try {
     const { userId } = req.auth;
     const row = db
@@ -70,7 +70,7 @@ export function me(req, res, next) {
     if (row.role !== 'admin' && row.role !== 'employee') {
       return res.status(403).json({ error: 'Роль не поддерживается' });
     }
-    res.json({
+    return res.json({
       user: {
         id: row.id,
         username: row.username,
@@ -78,8 +78,9 @@ export function me(req, res, next) {
         role: row.role,
       },
     });
-  } catch (e) {
-    next(e);
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ message: 'Server error' });
   }
 }
 

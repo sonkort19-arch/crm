@@ -1,5 +1,4 @@
 import 'dotenv/config';
-console.log("SERVER STARTED");
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
@@ -14,27 +13,13 @@ import authRouter from './routes/auth.js';
 import * as userController from './controllers/userController.js';
 import { requireAuth } from './auth/authMiddleware.js';
 import { requireRole } from './auth/requireRole.js';
-import { logger } from './logger.js';
 import { requestLogger, rejectEmptyJsonBody } from './middleware/http.js';
 import { errorHandler } from './middleware/errorHandler.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.join(__dirname, '..');
 
-const PORT = Number(process.env.PORT) || 3001;
-
-function parseCorsOrigins() {
-  const raw = process.env.CORS_ORIGIN;
-  if (!raw || !raw.trim()) {
-    return ['http://localhost:3001', 'http://127.0.0.1:3001', 'http://localhost:3000', 'http://127.0.0.1:3000'];
-  }
-  return raw
-    .split(',')
-    .map((s) => s.trim())
-    .filter(Boolean);
-}
-
-const allowedOrigins = parseCorsOrigins();
+const PORT = Number(process.env.PORT) || 3000;
 
 const app = express();
 
@@ -44,14 +29,8 @@ app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
 
 app.use(
   cors({
-    origin(origin, callback) {
-      if (!origin) return callback(null, true);
-      if (allowedOrigins.includes(origin)) return callback(null, true);
-      logger.warn('CORS blocked origin', { origin });
-      return callback(null, false);
-    },
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Accept', 'Authorization'],
+    origin: '*',
+    credentials: true,
   })
 );
 
@@ -83,5 +62,5 @@ app.get('/', (_req, res) => {
 app.use(errorHandler);
 
 app.listen(PORT, () => {
-  logger.info(`CRM: http://localhost:${PORT}`, { cors: allowedOrigins });
+  console.log('Server running on port', PORT);
 });
