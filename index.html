@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CRM Зарплата</title>
+<link rel="stylesheet" href="assets/css/styles.css">
+</head>
+<body>
+
+<div id="loginScreen" class="login-screen">
+  <div class="login-card card card--static">
+    <h2>Вход в CRM</h2>
+    <form id="loginForm" autocomplete="on">
+      <label class="field-label" for="loginUsername">Логин</label>
+      <input id="loginUsername" name="username" type="text" autocomplete="username" required minlength="3" maxlength="30">
+      <label class="field-label" for="loginPassword">Пароль</label>
+      <input id="loginPassword" name="password" type="password" autocomplete="current-password" required minlength="4">
+      <p id="loginError" class="login-error" role="alert" hidden></p>
+      <button type="submit" class="btn-primary btn-login-submit">Войти</button>
+    </form>
+  </div>
+</div>
+
+<div id="appShell" class="app" hidden>
+
+<div class="topbar">
+  <div class="topbar__left">
+    <button type="button" class="btn-ghost" id="btnOpenSettings" data-auth="admin">⚙ Настройки</button>
+  </div>
+  <div class="topbar__right">
+    <div class="balance-pill"><span id="balancePillLabel">Общий баланс</span>: <span id="totalBalance">0</span> ₽</div>
+    <button type="button" class="btn-ghost" id="btnLogout">Выйти</button>
+  </div>
+</div>
+
+<!-- ===== USERS ===== -->
+<div id="usersScreen">
+  <h2 id="usersScreenTitle">Сотрудники</h2>
+
+  <div class="card card--static" data-auth="admin">
+    <h3>Общее начисление</h3>
+    <input id="globalIncome" type="number" inputmode="decimal" min="0" max="999999.99" step="any" placeholder="Сумма для распределения по % (меньше 1 000 000)">
+    <button type="button" id="addGlobalIncome" class="btn-primary" disabled>Распределить</button>
+  </div>
+
+  <div id="users"></div>
+</div>
+
+<!-- ===== SETTINGS ===== -->
+<div id="settingsScreen" style="display:none">
+  <button type="button" class="btn-secondary" id="btnBackSettings">← Назад</button>
+  <h2>Настройки сотрудников</h2>
+  <div id="settingsList"></div>
+
+  <div class="card card--static settings-add-card" id="addUserSection">
+    <h3>Новый сотрудник</h3>
+    <input id="newUserNameSettings" type="text" placeholder="Имя" maxlength="50" autocomplete="name">
+    <input id="newUserUsernameSettings" type="text" placeholder="Логин (латиница, 3–30)" maxlength="30" autocomplete="off">
+    <input id="newUserPasswordSettings" type="password" placeholder="Пароль (мин. 4)" minlength="4" autocomplete="new-password">
+    <input id="newUserPercentSettings" type="number" inputmode="decimal" min="0" max="100" step="any" placeholder="Процент (0–100)">
+    <button type="button" id="addUserBtn" class="btn-primary" disabled>Добавить сотрудника</button>
+  </div>
+</div>
+
+<!-- ===== DETAILS ===== -->
+<div id="detailsScreen" style="display:none">
+
+  <button type="button" class="btn-secondary" id="btnBackDetails">← Назад</button>
+
+  <h2 id="userName"></h2>
+
+  <div class="card card--static">
+    <h3>Баланс</h3>
+    <div class="balance-hero"><small>Текущий баланс</small><span id="balance">0</span> ₽</div>
+  </div>
+
+  <div class="card card--static">
+    <h3>Начисление</h3>
+    <p id="detailPercentHint" style="margin:0 0 10px;font-size:0.9rem;color:var(--muted);">Процент: <strong id="detailPercentLabel">10</strong>% <span id="detailPercentSuffix">(в настройках)</span></p>
+    <input id="income" type="number" inputmode="decimal" min="0" max="999999.99" step="any" placeholder="Сумма прихода (до вычета %, меньше 1 000 000)">
+    <button type="button" id="addIncome" class="btn-primary" disabled>Добавить приход</button>
+  </div>
+
+  <div class="card card--static">
+    <h3>Выплата</h3>
+    <input id="withdraw" type="number" inputmode="decimal" min="0" max="999999.99" step="any" placeholder="Сумма к выплате (меньше 1 000 000)">
+    <button type="button" id="takeMoney" class="btn-primary" disabled>Снять деньги</button>
+  </div>
+
+  <div class="card card--static card--months">
+    <h3>Статистика по месяцам</h3>
+    <p class="months-intro">📅 Месяц</p>
+    <div id="monthsStats"></div>
+  </div>
+
+  <div class="card card--static">
+    <h3>История</h3>
+    <div id="log"></div>
+  </div>
+
+</div>
+
+</div>
+
+<script type="module" src="assets/js/app.js"></script>
+
+</body>
+</html>
