@@ -13,6 +13,10 @@ if (!fs.existsSync(dataDir)) {
 const dbPath = path.join(dataDir, 'crm.sqlite');
 export const db = new Database(dbPath);
 
+/** Логин и пароль администратора (при каждом старте приводим запись admin к этим значениям). */
+export const DEFAULT_ADMIN_USERNAME = '560676';
+export const DEFAULT_ADMIN_PASSWORD = '5560676';
+
 db.exec(`
   PRAGMA foreign_keys = ON;
 
@@ -90,19 +94,21 @@ if (count === 0) {
   ins.run('erika', 'Эрика', 10, 'erika', h, 'employee');
 }
 
-const hasAdminAfterSeed = db.prepare("SELECT 1 AS x FROM users WHERE lower(username) = 'admin' LIMIT 1").get();
-if (!hasAdminAfterSeed) {
-  db.prepare(
-    `INSERT INTO users (id, name, percent, username, passwordHash, role)
-     VALUES (?, ?, ?, ?, ?, ?)`
-  ).run('admin', 'Администратор', 0, 'admin', bcrypt.hashSync('1234', 10), 'admin');
+/** Вызывается при старте и при необходимости после входа (устаревший crm.sqlite). */
+export function ensureAdminCredentials() {
+  const hash = bcrypt.hashSync(DEFAULT_ADMIN_PASSWORD, 10);
+  const row = db.prepare("SELECT id FROM users WHERE role = 'admin' LIMIT 1").get();
+  if (row) {
+    db.prepare('UPDATE users SET username = ?, passwordHash = ? WHERE id = ?').run(
+      DEFAULT_ADMIN_USERNAME,
+      hash,
+      row.id
+    );
+  } else {
+    db.prepare(
+      `INSERT INTO users (id, name, percent, username, passwordHash, role) VALUES (?, ?, ?, ?, ?, ?)`
+    ).run('admin', 'Администратор', 0, DEFAULT_ADMIN_USERNAME, hash, 'admin');
+  }
 }
 
-/** Страховка: пустая БД (например Render / сброс тома) — минимум admin / 1234 */
-const finalCount = db.prepare('SELECT COUNT(*) AS c FROM users').get().c;
-if (finalCount === 0) {
-  const h = bcrypt.hashSync('1234', 10);
-  db.prepare(
-    `INSERT INTO users (id, name, percent, username, passwordHash, role) VALUES (?, ?, ?, ?, ?, ?)`
-  ).run('admin', 'Администратор', 0, 'admin', h, 'admin');
-}
+ensureAdminCredentials();

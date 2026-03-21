@@ -14,6 +14,9 @@ export function requireAuth(req, res, next) {
     return res.status(401).json({ error: 'Некорректный заголовок Authorization' });
   }
   const raw = m[1].trim();
+  if (!raw) {
+    return res.status(401).json({ error: 'Требуется авторизация' });
+  }
   try {
     const decoded = verifyToken(raw);
     const userId = decoded.userId;

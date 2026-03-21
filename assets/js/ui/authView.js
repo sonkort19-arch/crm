@@ -46,7 +46,7 @@ export function initAuthView(afterLogin) {
       errorEl.hidden = true;
     }
     try {
-      await login(u.value, p.value);
+      await login(u.value.trim(), p.value.trim());
       p.value = '';
       showAppScreen();
       if (onLoginSuccess) await onLoginSuccess();

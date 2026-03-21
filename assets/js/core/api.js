@@ -9,7 +9,7 @@ export const API_BASE = '/api';
 async function parseError(res) {
   try {
     const j = await res.json();
-    return j.error || JSON.stringify(j);
+    return j.error || j.message || JSON.stringify(j);
   } catch {
     return res.statusText || String(res.status);
   }

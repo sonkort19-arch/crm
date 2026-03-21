@@ -2,7 +2,7 @@
  * Токен и профиль в localStorage (без паролей).
  */
 
-export const STORAGE_TOKEN = 'crm_token';
+export const STORAGE_TOKEN = 'token';
 export const STORAGE_USER = 'crm_auth_user';
 
 export function getToken() {
@@ -52,7 +52,7 @@ export function setStoredUser(user) {
 
 export function authFetchHeaders(extra = {}) {
   const h = { ...extra };
-  const t = getToken();
+  const t = localStorage.getItem('token');
   if (t) h.Authorization = `Bearer ${t}`;
   return h;
 }

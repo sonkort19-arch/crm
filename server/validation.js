@@ -66,9 +66,9 @@ export function validateUsername(username) {
   return { ok: true, value: s };
 }
 
-/** Пароль при входе: минимум 4 символа */
+/** Пароль при входе: минимум 4 символа (пробелы по краям убираем — иначе ломается bcrypt) */
 export function validatePasswordLogin(password) {
-  const s = password != null ? String(password) : '';
+  const s = password != null ? String(password).trim() : '';
   if (s.length < 4) {
     return { ok: false, error: 'Пароль: минимум 4 символа' };
   }

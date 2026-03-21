@@ -20,10 +20,23 @@ export async function login(username, password) {
     body: JSON.stringify({ username, password }),
   });
   const data = await r.json().catch(() => ({}));
-  if (!r.ok) throw new Error(data.error || 'Ошибка входа');
+  if (!r.ok) throw new Error(data.error || data.message || 'Ошибка входа');
+  localStorage.setItem('token', data.token);
   setToken(data.token);
   setStoredUser(data.user);
-  return data.user;
+
+  const me = await fetch(`${API_AUTH}/me`, {
+    headers: {
+      Authorization: 'Bearer ' + localStorage.getItem('token'),
+    },
+  });
+  if (!me.ok) {
+    clearSession();
+    throw new Error('Сессия не подтверждена');
+  }
+  const meData = await me.json();
+  if (meData.user) setStoredUser(meData.user);
+  return meData.user;
 }
 
 export async function logout() {
@@ -31,7 +44,9 @@ export async function logout() {
     if (getToken()) {
       await fetch(`${API_AUTH}/logout`, {
         method: 'POST',
-        headers: authFetchHeaders({ 'Content-Type': 'application/json' }),
+        headers: {
+          ...authFetchHeaders({ 'Content-Type': 'application/json' }),
+        },
         body: '{}',
       });
     }
@@ -44,7 +59,11 @@ export async function logout() {
 export async function restoreSession() {
   if (!getToken()) return false;
   try {
-    const r = await fetch(`${API_AUTH}/me`, { headers: authFetchHeaders() });
+    const r = await fetch(`${API_AUTH}/me`, {
+      headers: {
+        Authorization: 'Bearer ' + localStorage.getItem('token'),
+      },
+    });
     if (r.status === 401) {
       clearSession();
       return false;
