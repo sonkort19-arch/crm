@@ -97,3 +97,12 @@ if (!hasAdminAfterSeed) {
      VALUES (?, ?, ?, ?, ?, ?)`
   ).run('admin', 'Администратор', 0, 'admin', bcrypt.hashSync('1234', 10), 'admin');
 }
+
+/** Страховка: пустая БД (например Render / сброс тома) — минимум admin / 1234 */
+const finalCount = db.prepare('SELECT COUNT(*) AS c FROM users').get().c;
+if (finalCount === 0) {
+  const h = bcrypt.hashSync('1234', 10);
+  db.prepare(
+    `INSERT INTO users (id, name, percent, username, passwordHash, role) VALUES (?, ?, ?, ?, ?, ?)`
+  ).run('admin', 'Администратор', 0, 'admin', h, 'admin');
+}

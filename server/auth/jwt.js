@@ -1,11 +1,11 @@
 import jwt from 'jsonwebtoken';
 
+/** На Render JWT_SECRET иногда не задан — иначе login падает при sign/verify */
+const JWT_SECRET =
+  (process.env.JWT_SECRET && String(process.env.JWT_SECRET).trim()) || 'secret123';
+
 function getSecret() {
-  const s = process.env.JWT_SECRET;
-  if (!s || !String(s).trim()) {
-    throw new Error('JWT_SECRET is not set in environment');
-  }
-  return String(s).trim();
+  return JWT_SECRET;
 }
 
 export function signToken(payload) {

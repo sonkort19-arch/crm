@@ -43,7 +43,7 @@ export function login(req, res, next) {
 
     logger.operation('auth.login', { userId: row.id, username: row.username, role: row.role });
 
-    res.json({
+    return res.json({
       token,
       user: {
         id: row.id,
@@ -52,8 +52,9 @@ export function login(req, res, next) {
         role: row.role,
       },
     });
-  } catch (e) {
-    next(e);
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ message: 'Server error' });
   }
 }
 
