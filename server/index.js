@@ -1,4 +1,12 @@
 import 'dotenv/config';
+
+process.on('uncaughtException', (err) => {
+  console.error('UNCAUGHT:', err);
+});
+process.on('unhandledRejection', (err) => {
+  console.error('UNHANDLED:', err);
+});
+
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
@@ -25,16 +33,15 @@ const app = express();
 
 app.set('trust proxy', 1);
 
+app.use(express.json({ limit: '100kb', strict: true }));
+app.use(cors({ origin: '*', credentials: true }));
+
+app.get('/', (_req, res) => {
+  res.send('API is running');
+});
+
 app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
 
-app.use(
-  cors({
-    origin: '*',
-    credentials: true,
-  })
-);
-
-app.use(express.json({ limit: '100kb', strict: true }));
 app.use(rejectEmptyJsonBody);
 app.use(requestLogger);
 
@@ -55,7 +62,7 @@ app.post('/api/operations/distribute', requireAuth, requireRole('admin'), userCo
 
 app.use(express.static(root));
 
-app.get('/', (_req, res) => {
+app.get('/index.html', (_req, res) => {
   res.sendFile(path.join(root, 'index.html'));
 });
 
