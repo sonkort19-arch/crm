@@ -1,0 +1,19 @@
+# Dependencies (шрифт подключается из manrope.css в корне)
+node_modules/
+
+# Локальные секреты / окружение
+.env
+.env.*
+!.env.example
+
+# Логи и ОС
+*.log
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Редакторы и служебное
+.idea/
+.vscode/
+*.swp
+*~

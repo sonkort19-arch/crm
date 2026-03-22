@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="ru" data-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="color-scheme" content="light dark" />
+  <title>Too CRM</title>
+  <script>
+    (function () {
+      try {
+        var k = 'calc_theme_v1';
+        var t = localStorage.getItem(k);
+        if (t === 'dark' || t === 'light') document.documentElement.setAttribute('data-theme', t);
+      } catch (e) {}
+    })();
+  </script>
+  <!-- Шрифт Manrope: локальный manrope.css; пакет @fontsource/manrope в node_modules не подключается напрямую (для npm/обновлений). -->
+  <link rel="stylesheet" href="manrope.css" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <button type="button" class="theme-fab ghost small-btn" id="themeToggle" aria-pressed="false" aria-label="Переключить тему оформления">
+    <span class="theme-fab__icon" aria-hidden="true">🌙</span>
+    <span class="theme-fab__text">Тёмная</span>
+  </button>
+  <div id="loginScreen" class="login-box">
+    <div class="card">
+      <h1>Вход</h1>
+      <p class="sub">Введите логин и пароль</p>
+
+      <div class="grid grid--tight-top">
+        <div class="input-block">
+          <label for="loginInput">Логин</label>
+          <input id="loginInput" type="text" placeholder="Введите логин" />
+        </div>
+
+        <div class="input-block">
+          <label for="passwordInput">Пароль</label>
+          <input id="passwordInput" type="password" placeholder="Введите пароль" />
+        </div>
+      </div>
+
+      <div class="login-actions">
+        <button class="primary" id="loginBtn" type="button">Войти</button>
+      </div>
+
+      <div class="status" id="loginStatus" aria-live="polite" aria-atomic="true"></div>
+    </div>
+  </div>
+
+  <div id="appScreen" class="hidden">
+    <header class="app-brand" id="appBrand" aria-label="Too CRM">
+      <h1 class="app-brand__title">Too CRM</h1>
+    </header>
+    <button type="button" class="app-role-fab" id="roleBadge" aria-label="">
+      <svg class="app-role-fab__icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
+      </svg>
+    </button>
+    <div class="wrap app-shell">
+      <aside class="app-sidebar" aria-label="Разделы приложения">
+        <nav class="app-nav">
+          <button class="ghost small-btn app-nav__btn" id="distributionBtn" type="button">Распределение</button>
+          <button class="ghost small-btn app-nav__btn" id="salaryBtn" type="button">Зарплата</button>
+          <button class="ghost small-btn app-nav__btn" id="settingsBtn" type="button">Настройки</button>
+          <button class="ghost small-btn app-nav__btn" id="logoutBtn" type="button">Выйти</button>
+        </nav>
+      </aside>
+
+      <div class="app-main">
+
+      <div id="settingsCard" class="card hidden">
+        <div class="settings-head">
+          <button type="button" id="settingsBackBtn" class="settings-back hidden" aria-label="Назад к списку сервисов">←</button>
+          <h3 id="settingsTitle">Настройки</h3>
+        </div>
+        <div class="settings-toolbar">
+          <button type="button" class="ghost small-btn" id="exportPercentsBtn">Экспорт JSON</button>
+          <button type="button" class="ghost small-btn" id="importPercentsBtn">Импорт JSON</button>
+          <input type="file" id="importPercentsFile" accept="application/json,.json" class="hidden" />
+        </div>
+        <div class="settings-grid" id="settingsContent"></div>
+        <div class="actions" id="settingsSaveWrap">
+          <button class="primary" id="saveSettingsBtn" type="button">Сохранить настройки</button>
+        </div>
+        <div class="hint" id="settingsHint">Удаление категории с подтверждением. После удаления сумма процентов по направлению должна снова быть 100%.</div>
+        <div class="status" id="settingsStatus" aria-live="polite" aria-atomic="true"></div>
+      </div>
+
+      <div id="salaryCard" class="card hidden">
+        <div class="settings-head">
+          <h3>Зарплата</h3>
+        </div>
+        <p class="sub salary-card-hint">Балансы по направлениям. Нажми направление — список строк и выплаты. Начисление — при «Рассчитать».</p>
+        <div class="salary-card-scroll">
+          <div class="salary-directions" id="salaryDirections"></div>
+        </div>
+      </div>
+
+      <div id="calcWorkspace">
+      <div id="loadWarning" class="load-warning hidden" role="alert" aria-live="assertive" aria-atomic="true"></div>
+
+      <div class="card">
+        <div class="grid">
+          <div class="input-block">
+            <label for="mobileAngel">Мобильный ангел</label>
+            <input id="mobileAngel" type="number" inputmode="decimal" min="0" step="0.01" placeholder="Например 20000" />
+          </div>
+
+          <div class="input-block">
+            <label for="nova">Нова</label>
+            <input id="nova" type="number" inputmode="decimal" min="0" step="0.01" placeholder="Например 30000" />
+          </div>
+
+          <div class="input-block">
+            <label for="tlabs">Т-лабс</label>
+            <input id="tlabs" type="number" inputmode="decimal" min="0" step="0.01" placeholder="Например 40000" />
+          </div>
+        </div>
+
+        <div class="actions actions--calc">
+          <button class="ghost" id="copyBtn" type="button" aria-label="Скопировать текст в буфер обмена">
+            <span class="btn-label btn-label--full">Скопировать текст</span>
+            <span class="btn-label btn-label--short" aria-hidden="true">Копир</span>
+          </button>
+          <button class="primary" id="calcBtn" type="button" aria-label="Рассчитать распределение по процентам">
+            <span class="btn-label btn-label--full">Рассчитать</span>
+            <span class="btn-label btn-label--short" aria-hidden="true">Расс</span>
+          </button>
+          <button class="ghost" id="clearBtn" type="button" aria-label="Очистить поля сумм и результат">
+            <span class="btn-label btn-label--full">Очистить</span>
+            <span class="btn-label btn-label--short" aria-hidden="true">Очист</span>
+          </button>
+        </div>
+        <div class="status" id="status" aria-live="polite" aria-atomic="true"></div>
+      </div>
+
+      <div class="card">
+        <h3>Результат</h3>
+        <div class="result-grid" id="resultGrid">
+          <div class="empty-note">Пока пусто. Нажми «Рассчитать» в блоке под суммами.</div>
+        </div>
+        <div class="totals" id="totals"></div>
+      </div>
+
+      <div class="card text-box">
+        <h3>Текст для WhatsApp</h3>
+        <textarea id="output" readonly placeholder="После расчёта здесь появится готовый текст"></textarea>
+        <div class="hint">Если автоматическое копирование не сработает, текст можно выделить вручную.</div>
+      </div>
+      </div>
+      </div>
+    </div>
+
+    <div id="salaryDetailModal" class="modal hidden" aria-hidden="true">
+      <div class="modal__backdrop" data-modal-close="salaryDetail" tabindex="-1"></div>
+      <div class="modal__panel" role="dialog" aria-modal="true" aria-labelledby="salaryDetailTitle">
+        <div class="modal__head">
+          <h3 id="salaryDetailTitle" class="modal__title"></h3>
+          <button type="button" class="ghost small-btn modal__close" data-modal-close="salaryDetail" aria-label="Закрыть">×</button>
+        </div>
+        <div class="modal__body" id="salaryDetailBody"></div>
+      </div>
+    </div>
+
+    <div id="payoutModal" class="modal hidden" aria-hidden="true">
+      <div class="modal__backdrop" data-modal-close="payout" tabindex="-1"></div>
+      <div class="modal__panel modal__panel--sm" role="dialog" aria-modal="true" aria-labelledby="payoutModalTitle">
+        <div class="modal__head">
+          <h3 id="payoutModalTitle" class="modal__title">Выплата</h3>
+          <button type="button" class="ghost small-btn modal__close" data-modal-close="payout" aria-label="Закрыть">×</button>
+        </div>
+        <div class="modal__body">
+          <p class="muted" id="payoutModalHint"></p>
+          <div class="input-block input-block--modal">
+            <label for="payoutAmountInput">Сумма выплаты</label>
+            <input id="payoutAmountInput" type="number" inputmode="decimal" step="0.01" placeholder="Например 5000" />
+          </div>
+          <p class="status" id="payoutModalStatus" aria-live="polite"></p>
+          <div class="modal__actions">
+            <button type="button" class="ghost" data-modal-close="payout">Отмена</button>
+            <button type="button" class="primary" id="payoutConfirmBtn">Подтвердить</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="percent-logic.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
