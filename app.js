@@ -130,7 +130,19 @@ function normalizeSalaryState(prevState) {
       (e) => e && typeof e === 'object' && e.serviceKey && e.name && typeof e.amount === 'number'
     );
   }
-  return { balances, payoutLog };
+  let accrualLog = [];
+  if (prevState && Array.isArray(prevState.accrualLog)) {
+    accrualLog = prevState.accrualLog.filter(
+      (e) =>
+        e &&
+        typeof e === 'object' &&
+        e.serviceKey &&
+        e.name &&
+        typeof e.amount === 'number' &&
+        e.amount > 0
+    );
+  }
+  return { balances, payoutLog, accrualLog };
 }
 
 function loadSalaryState() {
@@ -153,6 +165,7 @@ let SALARY = loadSalaryState();
 let currentRole = null;
 
 let payoutTarget = { serviceKey: null, name: null };
+let personHistoryTarget = { serviceKey: null, name: null };
 
 let settingsNavView = 'hub';
 let settingsDetailKey = null;
@@ -193,6 +206,7 @@ const els = {
   totals: document.getElementById('totals'),
   status: document.getElementById('status'),
   themeToggle: document.getElementById('themeToggle'),
+  brandLogo: document.getElementById('brandLogo'),
   mobileNavToggle: document.getElementById('mobileNavToggle'),
   settingsBackBtn: document.getElementById('settingsBackBtn'),
   settingsTitle: document.getElementById('settingsTitle'),
@@ -208,6 +222,11 @@ const els = {
   payoutAmountInput: document.getElementById('payoutAmountInput'),
   payoutModalStatus: document.getElementById('payoutModalStatus'),
   payoutConfirmBtn: document.getElementById('payoutConfirmBtn'),
+  personHistoryModal: document.getElementById('personHistoryModal'),
+  personHistoryTitle: document.getElementById('personHistoryTitle'),
+  personHistoryBody: document.getElementById('personHistoryBody'),
+  personHistoryDateFrom: document.getElementById('personHistoryDateFrom'),
+  personHistoryDateTo: document.getElementById('personHistoryDateTo'),
 };
 
 function applyTheme(theme) {
@@ -217,6 +236,13 @@ function applyTheme(theme) {
     localStorage.setItem(STORAGE_KEYS.theme, next);
   } catch (e) {}
   updateThemeButton();
+  updateBrandLogo();
+}
+
+function updateBrandLogo() {
+  if (!els.brandLogo) return;
+  const dark = document.documentElement.getAttribute('data-theme') === 'dark';
+  els.brandLogo.src = dark ? 'assets/logo-dark.svg' : 'assets/logo.svg';
 }
 
 function updateThemeButton() {
@@ -237,10 +263,13 @@ function initTheme() {
     }
   } catch (e) {}
   updateThemeButton();
+  updateBrandLogo();
 }
 
 function savePercentages() {
-  localStorage.setItem(STORAGE_KEYS.percentages, JSON.stringify(PERCENTAGES));
+  try {
+    localStorage.setItem(STORAGE_KEYS.percentages, JSON.stringify(PERCENTAGES));
+  } catch (e) {}
 }
 
 function syncSalaryWithPercentages() {
@@ -256,6 +285,8 @@ function sumServiceBalances(serviceKey) {
 }
 
 function accrueSalaryFromServices(services) {
+  if (!Array.isArray(SALARY.accrualLog)) SALARY.accrualLog = [];
+  const at = new Date().toISOString();
   for (const key of Object.keys(services)) {
     const svc = services[key];
     if (!svc || typeof svc !== 'object') continue;
@@ -265,6 +296,9 @@ function accrueSalaryFromServices(services) {
       const cur = SALARY.balances[key][name];
       const base = typeof cur === 'number' && Number.isFinite(cur) ? cur : 0;
       SALARY.balances[key][name] = +(base + add).toFixed(2);
+      if (add > 0) {
+        SALARY.accrualLog.push({ serviceKey: key, name, amount: +add.toFixed(2), at });
+      }
     }
   }
   saveSalaryState();
@@ -282,14 +316,26 @@ function renderSalaryDetailBody(serviceKey) {
       const bal = balances[name] ?? 0;
       return `
       <div class="salary-detail-row">
-        <span class="salary-detail-row__name">${escapeHtml(name)}</span>
-        <span class="salary-detail-row__sum">${formatMoney(bal)}</span>
-        <button type="button" class="ghost small-btn" data-salary-payout="${escapeAttr(serviceKey)}" data-payout-name="${escapeAttr(name)}">Выплата</button>
+        <div class="salary-detail-row__main">
+          <button type="button" class="salary-detail-row__name-btn" data-salary-history="${escapeAttr(serviceKey)}" data-person-name="${escapeAttr(name)}">
+            <span class="salary-detail-row__name-text">${escapeHtml(name)}</span>
+            <span class="salary-detail-row__name-meta">История</span>
+          </button>
+        </div>
+        <div class="salary-detail-row__balance">
+          <span class="salary-detail-row__balance-label">Баланс</span>
+          <span class="salary-detail-row__sum">${formatMoney(bal)} <span class="salary-detail-row__currency">₽</span></span>
+        </div>
+        <div class="salary-detail-row__action">
+          <button type="button" class="ghost small-btn salary-detail-row__payout-btn" data-salary-payout="${escapeAttr(serviceKey)}" data-payout-name="${escapeAttr(name)}">Выплата</button>
+        </div>
       </div>
     `;
     })
     .join('');
-  els.salaryDetailBody.innerHTML = rows || '<p class="muted">Нет строк.</p>';
+  els.salaryDetailBody.innerHTML = rows
+    ? `<div class="salary-detail-list">${rows}</div>`
+    : '<p class="muted salary-detail-empty">Нет строк.</p>';
 }
 
 function openSalaryDetailModal(serviceKey) {
@@ -303,6 +349,208 @@ function closeSalaryDetailModal() {
   if (!els.salaryDetailModal) return;
   els.salaryDetailModal.classList.add('hidden');
   els.salaryDetailModal.setAttribute('aria-hidden', 'true');
+}
+
+function formatDateInputValue(d) {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+function parseDateInputValue(str) {
+  if (!str || typeof str !== 'string') return null;
+  const p = str.split('-');
+  if (p.length !== 3) return null;
+  const y = Number(p[0]);
+  const m = Number(p[1]);
+  const d = Number(p[2]);
+  if (!Number.isFinite(y) || !Number.isFinite(m) || !Number.isFinite(d)) return null;
+  return new Date(y, m - 1, d);
+}
+
+function getPersonHistoryDateRange() {
+  const fromStr = els.personHistoryDateFrom && els.personHistoryDateFrom.value;
+  const toStr = els.personHistoryDateTo && els.personHistoryDateTo.value;
+  const d0 = parseDateInputValue(fromStr);
+  const d1 = parseDateInputValue(toStr);
+  if (!d0 || !d1) return null;
+  const start = new Date(d0.getFullYear(), d0.getMonth(), d0.getDate(), 0, 0, 0, 0);
+  const end = new Date(d1.getFullYear(), d1.getMonth(), d1.getDate(), 23, 59, 59, 999);
+  if (start > end) return null;
+  return { start, end };
+}
+
+function updatePersonHistoryPresetButtons(activePreset) {
+  if (!els.personHistoryModal) return;
+  els.personHistoryModal.querySelectorAll('[data-person-history-preset]').forEach((btn) => {
+    const p = btn.getAttribute('data-person-history-preset');
+    const isActive = Boolean(activePreset && p === activePreset);
+    btn.classList.toggle('is-active', isActive);
+    btn.setAttribute('aria-pressed', isActive ? 'true' : 'false');
+  });
+}
+
+function setPersonHistoryPreset(preset) {
+  const now = new Date();
+  let from;
+  let to;
+  if (preset === 'month') {
+    from = new Date(now.getFullYear(), now.getMonth(), 1);
+    to = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+  } else if (preset === '30') {
+    to = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
+    from = new Date(to);
+    from.setDate(from.getDate() - 29);
+    from.setHours(0, 0, 0, 0);
+  } else if (preset === 'prevMonth') {
+    from = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    to = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999);
+  } else {
+    return;
+  }
+  if (els.personHistoryDateFrom) els.personHistoryDateFrom.value = formatDateInputValue(from);
+  if (els.personHistoryDateTo) els.personHistoryDateTo.value = formatDateInputValue(to);
+  updatePersonHistoryPresetButtons(preset);
+  renderPersonHistoryBody();
+}
+
+function collectPersonOperations(serviceKey, name) {
+  const out = [];
+  const acc = SALARY.accrualLog || [];
+  const pay = SALARY.payoutLog || [];
+  for (const e of acc) {
+    if (e.serviceKey === serviceKey && e.name === name && e.amount > 0) {
+      out.push({ kind: 'accrual', amount: e.amount, at: e.at });
+    }
+  }
+  for (const e of pay) {
+    if (e.serviceKey === serviceKey && e.name === name && e.amount > 0) {
+      out.push({ kind: 'payout', amount: e.amount, at: e.at });
+    }
+  }
+  return out.sort((a, b) => new Date(a.at) - new Date(b.at));
+}
+
+function filterOperationsByRange(ops, start, end) {
+  return ops.filter((o) => {
+    const t = new Date(o.at);
+    return !Number.isNaN(t.getTime()) && t >= start && t <= end;
+  });
+}
+
+function renderPersonHistoryBody() {
+  if (!els.personHistoryBody || !personHistoryTarget.serviceKey || !personHistoryTarget.name) return;
+  const { serviceKey, name } = personHistoryTarget;
+  const svcTitle = PERCENTAGES[serviceKey] ? PERCENTAGES[serviceKey].title : serviceKey;
+  if (els.personHistoryTitle) {
+    els.personHistoryTitle.textContent = `${name} — ${svcTitle}`;
+  }
+  const range = getPersonHistoryDateRange();
+  if (!range) {
+    els.personHistoryBody.innerHTML =
+      '<div class="salary-history-msg salary-history-msg--warn"><p>Укажите период «с» и «по».</p></div>';
+    return;
+  }
+  const { start, end } = range;
+  const all = collectPersonOperations(serviceKey, name);
+  const inRange = filterOperationsByRange(all, start, end);
+  let accSum = 0;
+  let paySum = 0;
+  for (const o of inRange) {
+    if (o.kind === 'accrual') accSum += o.amount;
+    else paySum += o.amount;
+  }
+  accSum = +accSum.toFixed(2);
+  paySum = +paySum.toFixed(2);
+  const delta = +(accSum - paySum).toFixed(2);
+
+  const fmtDateLong = (d) =>
+    d.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' });
+  const fmtDt = (iso) => {
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return '—';
+    return d.toLocaleString('ru-RU', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  };
+
+  const rows = inRange
+    .map((o) => {
+      const isAcc = o.kind === 'accrual';
+      const label = isAcc ? 'Начисление' : 'Выплата';
+      const cls = isAcc ? 'salary-history-row--accrual' : 'salary-history-row--payout';
+      const sign = isAcc ? '+' : '−';
+      const amt = formatMoney(o.amount);
+      return `<div class="salary-history-row ${cls}" role="row">
+        <span class="salary-history-row__kind">${label}</span>
+        <span class="salary-history-row__date">${escapeHtml(fmtDt(o.at))}</span>
+        <span class="salary-history-row__amount">${sign}${escapeHtml(amt)}</span>
+      </div>`;
+    })
+    .join('');
+
+  const periodLabel = `${fmtDateLong(start)} — ${fmtDateLong(end)}`;
+
+  const listBlock = inRange.length
+    ? `<div class="salary-history-table" role="table" aria-label="Операции за период">
+        <div class="salary-history-list-head" role="row">
+          <span>Тип</span><span>Дата и время</span><span>Сумма</span>
+        </div>
+        <div class="salary-history-list">${rows}</div>
+      </div>`
+    : `<div class="salary-history-empty-state">
+        <span class="salary-history-empty-icon" aria-hidden="true">📋</span>
+        <p class="salary-history-empty-title">Нет операций</p>
+        <p class="salary-history-empty-sub">За выбранный период записей не было.</p>
+      </div>`;
+
+  els.personHistoryBody.innerHTML = `
+    <div class="salary-history-summary">
+      <div class="salary-history-summary__item">
+        <span class="salary-history-summary__label">Начислено</span>
+        <strong class="salary-history-summary__val salary-history-summary__val--ok">${formatMoney(accSum)}</strong>
+        <span class="salary-history-summary__hint">₽ за период</span>
+      </div>
+      <div class="salary-history-summary__item">
+        <span class="salary-history-summary__label">Выплачено</span>
+        <strong class="salary-history-summary__val salary-history-summary__val--out">${formatMoney(paySum)}</strong>
+        <span class="salary-history-summary__hint">₽ за период</span>
+      </div>
+      <div class="salary-history-summary__item">
+        <span class="salary-history-summary__label">Разница</span>
+        <strong class="salary-history-summary__val">${formatMoney(delta)}</strong>
+        <span class="salary-history-summary__hint">начислено − выплачено</span>
+      </div>
+    </div>
+    <div class="salary-history-period-bar">
+      <span class="salary-history-period-bar__label">Период</span>
+      <span class="salary-history-period-bar__value">${escapeHtml(periodLabel)}</span>
+    </div>
+    ${listBlock}
+  `;
+}
+
+function openPersonHistoryModal(serviceKey, name) {
+  personHistoryTarget = { serviceKey, name };
+  setPersonHistoryPreset('month');
+  if (els.personHistoryModal) {
+    els.personHistoryModal.classList.remove('hidden');
+    els.personHistoryModal.setAttribute('aria-hidden', 'false');
+  }
+}
+
+function closePersonHistoryModal() {
+  personHistoryTarget = { serviceKey: null, name: null };
+  updatePersonHistoryPresetButtons(null);
+  if (els.personHistoryModal) {
+    els.personHistoryModal.classList.add('hidden');
+    els.personHistoryModal.setAttribute('aria-hidden', 'true');
+  }
 }
 
 function openPayoutModal(serviceKey, name) {
@@ -375,6 +623,14 @@ function confirmPayout() {
   renderSalaryModule();
   if (reopenKey && els.salaryDetailModal && !els.salaryDetailModal.classList.contains('hidden')) {
     renderSalaryDetailBody(reopenKey);
+  }
+  if (
+    personHistoryTarget.serviceKey === serviceKey &&
+    personHistoryTarget.name === name &&
+    els.personHistoryModal &&
+    !els.personHistoryModal.classList.contains('hidden')
+  ) {
+    renderPersonHistoryBody();
   }
 }
 
@@ -508,6 +764,14 @@ function calculate(options = {}) {
 
   if (accrueSalary) {
     accrueSalaryFromServices(services);
+    if (
+      els.personHistoryModal &&
+      !els.personHistoryModal.classList.contains('hidden') &&
+      personHistoryTarget.serviceKey &&
+      personHistoryTarget.name
+    ) {
+      renderPersonHistoryBody();
+    }
   }
 
   const personKeys = getPersonKeys();
@@ -1043,9 +1307,9 @@ els.loginInput.addEventListener('keydown', (e) => {
 
 if (els.distributionBtn) els.distributionBtn.addEventListener('click', showDistribution);
 if (els.salaryBtn) els.salaryBtn.addEventListener('click', showSalary);
-els.settingsBtn.addEventListener('click', showSettings);
+if (els.settingsBtn) els.settingsBtn.addEventListener('click', showSettings);
 if (els.settingsBackBtn) els.settingsBackBtn.addEventListener('click', settingsGoBack);
-els.saveSettingsBtn.addEventListener('click', saveSettings);
+if (els.saveSettingsBtn) els.saveSettingsBtn.addEventListener('click', saveSettings);
 els.settingsContent.addEventListener('click', handleAddCategoryClick);
 els.logoutBtn.addEventListener('click', logout);
 
@@ -1089,6 +1353,14 @@ if (els.salaryDirections) {
 
 if (els.salaryDetailModal) {
   els.salaryDetailModal.addEventListener('click', (e) => {
+    const h = e.target.closest('[data-salary-history]');
+    if (h) {
+      e.preventDefault();
+      const serviceKey = h.getAttribute('data-salary-history');
+      const name = h.getAttribute('data-person-name');
+      if (serviceKey && name) openPersonHistoryModal(serviceKey, name);
+      return;
+    }
     const p = e.target.closest('[data-salary-payout]');
     if (!p) return;
     e.preventDefault();
@@ -1096,6 +1368,27 @@ if (els.salaryDetailModal) {
     const name = p.getAttribute('data-payout-name');
     if (serviceKey && name) openPayoutModal(serviceKey, name);
   });
+}
+
+if (els.personHistoryModal) {
+  els.personHistoryModal.addEventListener('click', (e) => {
+    const b = e.target.closest('[data-person-history-preset]');
+    if (!b) return;
+    const preset = b.getAttribute('data-person-history-preset');
+    if (preset === 'month' || preset === '30' || preset === 'prevMonth') setPersonHistoryPreset(preset);
+  });
+}
+
+function onPersonHistoryDateChange() {
+  updatePersonHistoryPresetButtons(null);
+  renderPersonHistoryBody();
+}
+
+if (els.personHistoryDateFrom) {
+  els.personHistoryDateFrom.addEventListener('change', onPersonHistoryDateChange);
+}
+if (els.personHistoryDateTo) {
+  els.personHistoryDateTo.addEventListener('change', onPersonHistoryDateChange);
 }
 
 if (els.payoutConfirmBtn) {
@@ -1111,12 +1404,17 @@ if (els.payoutAmountInput) {
 els.appScreen.addEventListener('click', (e) => {
   if (e.target.closest('[data-modal-close="payout"]')) closePayoutModal();
   if (e.target.closest('[data-modal-close="salaryDetail"]')) closeSalaryDetailModal();
+  if (e.target.closest('[data-modal-close="personHistory"]')) closePersonHistoryModal();
 });
 
 document.addEventListener('keydown', (e) => {
   if (e.key !== 'Escape') return;
   if (els.payoutModal && !els.payoutModal.classList.contains('hidden')) {
     closePayoutModal();
+    return;
+  }
+  if (els.personHistoryModal && !els.personHistoryModal.classList.contains('hidden')) {
+    closePersonHistoryModal();
     return;
   }
   if (els.salaryDetailModal && !els.salaryDetailModal.classList.contains('hidden')) {

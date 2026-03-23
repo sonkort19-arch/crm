@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <meta name="color-scheme" content="light dark" />
   <title>Too CRM</title>
+  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml" sizes="any" />
   <script>
     (function () {
       try {
@@ -14,7 +15,7 @@
       } catch (e) {}
     })();
   </script>
-  <!-- Шрифт Manrope: локальный manrope.css; пакет @fontsource/manrope в node_modules не подключается напрямую (для npm/обновлений). -->
+  <!-- Шрифт Manrope: локальный manrope.css (без npm-зависимостей для рантайма). -->
   <link rel="stylesheet" href="manrope.css" />
   <link rel="stylesheet" href="styles.css" />
 </head>
@@ -50,7 +51,18 @@
 
   <div id="appScreen" class="hidden">
     <header class="app-brand" id="appBrand" aria-label="Too CRM">
-      <h1 class="app-brand__title">Too CRM</h1>
+      <h1 class="app-brand__title">
+        <img
+          id="brandLogo"
+          class="app-brand__logo"
+          src="assets/logo.svg"
+          width="36"
+          height="42"
+          alt=""
+          decoding="async"
+        />
+        <span class="app-brand__name">Too CRM</span>
+      </h1>
     </header>
     <button type="button" class="app-role-fab" id="roleBadge" aria-label="">
       <svg class="app-role-fab__icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true">
@@ -113,7 +125,7 @@
         <div class="settings-head">
           <h3>Зарплата</h3>
         </div>
-        <p class="sub salary-card-hint">Балансы по направлениям. Нажми направление — список строк и выплаты. Начисление — при «Рассчитать».</p>
+        <p class="sub salary-card-hint">Балансы по направлениям. Нажми направление — список строк и выплаты; нажми имя — история по периоду. Начисление — при «Рассчитать».</p>
         <div class="salary-card-scroll">
           <div class="salary-directions" id="salaryDirections"></div>
         </div>
@@ -181,7 +193,63 @@
           <h3 id="salaryDetailTitle" class="modal__title"></h3>
           <button type="button" class="ghost small-btn modal__close" data-modal-close="salaryDetail" aria-label="Закрыть">×</button>
         </div>
-        <div class="modal__body" id="salaryDetailBody"></div>
+        <div class="modal__body modal__body--salary-detail" id="salaryDetailBody"></div>
+      </div>
+    </div>
+
+    <div id="personHistoryModal" class="modal modal--person-history hidden" aria-hidden="true">
+      <div class="modal__backdrop" data-modal-close="personHistory" tabindex="-1"></div>
+      <div class="modal__panel modal__panel--history" role="dialog" aria-modal="true" aria-labelledby="personHistoryTitle">
+        <div class="modal__head">
+          <h3 id="personHistoryTitle" class="modal__title">История</h3>
+          <button type="button" class="ghost small-btn modal__close" data-modal-close="personHistory" aria-label="Закрыть">×</button>
+        </div>
+        <div class="modal__body modal__body--person-history">
+          <div class="salary-history-controls">
+            <p class="salary-history-controls__label">Период</p>
+            <div
+              class="salary-history-segment"
+              role="toolbar"
+              aria-label="Быстрый выбор периода"
+            >
+              <button
+                type="button"
+                class="salary-history-preset"
+                data-person-history-preset="month"
+                aria-pressed="false"
+              >
+                Этот месяц
+              </button>
+              <button
+                type="button"
+                class="salary-history-preset"
+                data-person-history-preset="30"
+                aria-pressed="false"
+              >
+                30 дней
+              </button>
+              <button
+                type="button"
+                class="salary-history-preset"
+                data-person-history-preset="prevMonth"
+                aria-pressed="false"
+              >
+                Прошлый месяц
+              </button>
+            </div>
+            <div class="salary-history-dates">
+              <div class="input-block input-block--inline">
+                <label for="personHistoryDateFrom">С</label>
+                <input id="personHistoryDateFrom" type="date" />
+              </div>
+              <div class="input-block input-block--inline">
+                <label for="personHistoryDateTo">По</label>
+                <input id="personHistoryDateTo" type="date" />
+              </div>
+            </div>
+          </div>
+          <div id="personHistoryBody" class="salary-history-content"></div>
+        </div>
       </div>
     </div>
 

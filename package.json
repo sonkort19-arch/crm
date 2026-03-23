@@ -1,5 +1,5 @@
 {
-  "dependencies": {
-    "@fontsource/manrope": "^5.2.5"
-  }
+  "name": "too-crm",
+  "private": true,
+  "description": "Статический Too CRM; шрифты подключаются из manrope.css в корне (без npm-зависимостей для рантайма)."
 }
