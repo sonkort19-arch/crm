@@ -155,7 +155,14 @@
           <button type="button" class="calculator-top-btn" id="calculatorHistoryBtn" aria-label="История вычислений">🕘</button>
           <button type="button" class="calculator-top-btn" id="calculatorBackBtn" aria-label="Назад в меню">←</button>
         </div>
-        <div class="calculator-screen" id="calculatorScreen" aria-live="polite">0</div>
+        <div class="calculator-screen" id="calculatorScreen" aria-live="polite" aria-atomic="true">
+          <div class="calculator-screen__expr-scroll" aria-hidden="true">
+            <div class="calculator-screen__expr" id="calculatorExpr"></div>
+          </div>
+          <div class="calculator-screen__main-scroll">
+            <div class="calculator-screen__main" id="calculatorMain">0</div>
+          </div>
+        </div>
         <div class="calculator-grid" id="calculatorGrid">
           <button type="button" class="calculator-btn calculator-btn--func" data-calc-action="clear">C</button>
           <button type="button" class="calculator-btn calculator-btn--func" data-calc-action="sign">±</button>

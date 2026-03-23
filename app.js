@@ -287,6 +287,8 @@ const els = {
   salaryCard: document.getElementById('salaryCard'),
   calculatorCard: document.getElementById('calculatorCard'),
   calculatorScreen: document.getElementById('calculatorScreen'),
+  calculatorExpr: document.getElementById('calculatorExpr'),
+  calculatorMain: document.getElementById('calculatorMain'),
   calculatorGrid: document.getElementById('calculatorGrid'),
   calculatorBackBtn: document.getElementById('calculatorBackBtn'),
   calculatorHistoryBtn: document.getElementById('calculatorHistoryBtn'),
@@ -1184,10 +1186,40 @@ function normalizeExprOperand(text) {
   return String(n);
 }
 
+/** Верхняя строка дисплея: видно цепочку «что с чем» (операторы и операнды). */
+function getCalculatorTapeText() {
+  if (calculatorState.error) return '';
+  const ex = (calculatorState.expression || '').trim();
+  if (!ex) return '';
+  if (calculatorState.waitingNext && calculatorState.operator) {
+    return ex;
+  }
+  const disp = calculatorState.display ?? '0';
+  return `${ex} ${disp}`.replace(/\s+/g, ' ').trim();
+}
+
+function scrollCalcStripToEnd(scrollEl) {
+  if (!scrollEl) return;
+  requestAnimationFrame(() => {
+    scrollEl.scrollLeft = Math.max(0, scrollEl.scrollWidth - scrollEl.clientWidth);
+  });
+}
+
 function renderCalculator() {
-  if (!els.calculatorScreen) return;
-  const text = calculatorState.display || '0';
-  els.calculatorScreen.textContent = text;
+  if (!els.calculatorMain || !els.calculatorScreen) return;
+  const mainText = calculatorState.display || '0';
+  els.calculatorMain.textContent = mainText;
+  const tape = getCalculatorTapeText();
+  if (els.calculatorExpr) {
+    els.calculatorExpr.textContent = tape;
+    els.calculatorExpr.classList.toggle('calculator-screen__expr--long', tape.length > 22);
+  }
+  const tapeScroll = els.calculatorScreen.querySelector('.calculator-screen__expr-scroll');
+  const mainScroll = els.calculatorScreen.querySelector('.calculator-screen__main-scroll');
+  scrollCalcStripToEnd(tapeScroll);
+  scrollCalcStripToEnd(mainScroll);
+  const a11y = tape ? `${tape}, ${mainText}` : mainText;
+  els.calculatorScreen.setAttribute('aria-label', a11y);
 }
 
 function renderCalculatorHistory() {
@@ -1330,6 +1362,7 @@ function chooseCalcOperator(operator) {
       calculatorState.expression = `${normalizeExprOperand(calculatorState.display)} ${symbol}`;
     }
     calculatorState.operator = operator;
+    renderCalculator();
     return;
   }
   const operand = normalizeExprOperand(calculatorState.display);
@@ -1343,6 +1376,7 @@ function chooseCalcOperator(operator) {
   calculatorState.operator = operator;
   calculatorState.waitingNext = true;
   calculatorState.expression = `${calculatorState.expression} ${symbol}`;
+  renderCalculator();
 }
 
 function equalCalc() {
@@ -1359,6 +1393,7 @@ function equalCalc() {
   calculatorState.operator = null;
   calculatorState.waitingNext = true;
   calculatorState.expression = '';
+  renderCalculator();
 }
 
 function calcBackspace() {

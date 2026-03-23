@@ -491,21 +491,62 @@ body.calculator-open #calculatorBtn.app-nav__btn:focus-visible {
 }
 
 .calculator-screen {
-  min-height: 84px;
+  min-height: 96px;
   border-radius: 12px;
   border: 1px solid var(--line);
   background: color-mix(in srgb, var(--surface-2) 70%, var(--card));
   color: var(--text);
   display: flex;
-  align-items: flex-end;
+  flex-direction: column;
+  align-items: stretch;
   justify-content: flex-end;
-  padding: 12px 14px;
-  font-size: clamp(1.7rem, 7vw, 2.4rem);
-  font-weight: 700;
-  line-height: 1.1;
+  gap: 6px;
+  padding: 10px 12px 12px;
+  line-height: 1.15;
   font-variant-numeric: tabular-nums;
   overflow: hidden;
-  text-overflow: ellipsis;
+}
+
+.calculator-screen__expr-scroll,
+.calculator-screen__main-scroll {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  text-align: right;
+}
+
+.calculator-screen__expr-scroll::-webkit-scrollbar,
+.calculator-screen__main-scroll::-webkit-scrollbar {
+  display: none;
+}
+
+.calculator-screen__expr {
+  display: inline-block;
+  min-width: min-content;
+  max-width: none;
+  padding: 0 2px;
+  font-size: clamp(0.8rem, 3.4vw, 0.95rem);
+  font-weight: 600;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.calculator-screen__expr--long {
+  font-size: clamp(0.72rem, 3vw, 0.85rem);
+}
+
+.calculator-screen__main {
+  display: inline-block;
+  min-width: min-content;
+  max-width: none;
+  padding: 0 2px;
+  font-size: clamp(1.5rem, 6.5vw, 2.35rem);
+  font-weight: 700;
+  color: var(--text);
+  white-space: nowrap;
 }
 
 .calculator-grid {
@@ -2068,8 +2109,15 @@ body.salary-open #salaryCard.hidden {
   }
 
   body.calculator-open #calculatorCard .calculator-screen {
-    min-height: 108px;
-    font-size: clamp(2.2rem, 10vw, 3.6rem);
+    min-height: 118px;
+  }
+
+  body.calculator-open #calculatorCard .calculator-screen__main {
+    font-size: clamp(1.85rem, 9vw, 3.35rem);
+  }
+
+  body.calculator-open #calculatorCard .calculator-screen__expr {
+    font-size: clamp(0.78rem, 3.2vw, 1rem);
   }
 
   body.calculator-open #calculatorCard .calculator-grid {
