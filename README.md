@@ -43,6 +43,15 @@ printf '%s\n' "window.CRM_CONFIG={supabaseUrl:\"$SUPABASE_URL\",supabaseAnonKey:
 
 Локально открывайте сайт через **HTTP** (например Live Server / `npx serve`), а не как `file://` — иначе ES-модули (`app.js` → `crm-cloud.js`) могут не загрузиться.
 
+### Если локально видите `Failed to fetch`
+
+Почти всегда причина в `crm-config.js`:
+- в объекте `window.CRM_CONFIG` должна быть **ровно одна** пара `supabaseUrl` + `supabaseAnonKey`;
+- не оставляйте шаблонные строки (`YOUR_PROJECT_REF`, `YOUR_SUPABASE_ANON_KEY`);
+- URL должен быть вида `https://<project-ref>.supabase.co` (без лишних символов).
+
+Также проверьте, что открываете сайт через `http://127.0.0.1:...`, а не `file://`.
+
 ## Зависимости npm (необязательно)
 
 Сайт в браузере не требует пакетов: шрифт из **`manrope.css`**. `npm install` на Render нужен только для шага **`npm run build`** (генерация `crm-config.js`).

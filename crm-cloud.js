@@ -11,9 +11,28 @@ const DEBOUNCE_MS = 380;
 const TABLE = 'app_state';
 const ROW_ID = 'main';
 
+function validateConfig(raw) {
+  if (!raw || typeof raw !== 'object') return { ok: false, reason: 'no_config' };
+  const url = String(raw.supabaseUrl || '').trim();
+  const key = String(raw.supabaseAnonKey || '').trim();
+  if (!url || !key) return { ok: false, reason: 'missing_fields' };
+  if (url.includes('YOUR_PROJECT_REF') || key.includes('YOUR_SUPABASE_ANON_KEY')) {
+    return { ok: false, reason: 'placeholder_values' };
+  }
+  try {
+    const parsed = new URL(url);
+    if (parsed.protocol !== 'https:' || !parsed.hostname.endsWith('.supabase.co')) {
+      return { ok: false, reason: 'invalid_url' };
+    }
+  } catch {
+    return { ok: false, reason: 'invalid_url' };
+  }
+  return { ok: true, url, key };
+}
+
 export function isConfigured() {
   const c = typeof window !== 'undefined' ? window.CRM_CONFIG : null;
-  return Boolean(c && c.supabaseUrl && c.supabaseAnonKey);
+  return validateConfig(c).ok;
 }
 
 export function setStateGetter(fn) {
@@ -55,11 +74,11 @@ async function flushPersist() {
  */
 export async function initCrmCloud(options) {
   const { onRow } = options;
-  if (!isConfigured()) {
-    return { ok: false, error: 'no_config' };
+  const cfg = validateConfig(typeof window !== 'undefined' ? window.CRM_CONFIG : null);
+  if (!cfg.ok) {
+    return { ok: false, error: cfg.reason };
   }
-  const cfg = window.CRM_CONFIG;
-  client = createClient(cfg.supabaseUrl, cfg.supabaseAnonKey, {
+  client = createClient(cfg.url, cfg.key, {
     auth: { persistSession: false, autoRefreshToken: false },
   });
 
