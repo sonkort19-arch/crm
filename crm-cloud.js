@@ -6,6 +6,7 @@ import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js
 let client = null;
 let persistTimer = null;
 let getStateFn = null;
+let lastSeenUpdatedAt = null;
 const DEBOUNCE_MS = 380;
 
 const TABLE = 'app_state';
@@ -56,16 +57,37 @@ export function schedulePersist() {
 async function flushPersist() {
   if (!client || !getStateFn) return;
   const { percentages, salary } = getStateFn();
-  const { error } = await client.from(TABLE).upsert(
-    {
-      id: ROW_ID,
-      percentages,
-      salary,
-      updated_at: new Date().toISOString(),
-    },
-    { onConflict: 'id' }
-  );
+  const nextUpdatedAt = new Date().toISOString();
+  const payload = {
+    percentages,
+    salary,
+    updated_at: nextUpdatedAt,
+  };
+
+  if (lastSeenUpdatedAt) {
+    const { data, error } = await client
+      .from(TABLE)
+      .update(payload)
+      .eq('id', ROW_ID)
+      .eq('updated_at', lastSeenUpdatedAt)
+      .select('updated_at');
+    if (error) throw error;
+    if (!Array.isArray(data) || data.length === 0) {
+      const conflictError = new Error('optimistic_conflict');
+      conflictError.code = 'optimistic_conflict';
+      throw conflictError;
+    }
+    lastSeenUpdatedAt = data[0].updated_at || nextUpdatedAt;
+    return;
+  }
+
+  const { data, error } = await client
+    .from(TABLE)
+    .upsert({ id: ROW_ID, ...payload }, { onConflict: 'id' })
+    .select('updated_at')
+    .single();
   if (error) throw error;
+  lastSeenUpdatedAt = data?.updated_at || nextUpdatedAt;
 }
 
 /**
@@ -89,6 +111,7 @@ export async function initCrmCloud(options) {
   }
 
   if (data) {
+    lastSeenUpdatedAt = data.updated_at || null;
     onRow(data);
   }
 
@@ -100,6 +123,7 @@ export async function initCrmCloud(options) {
       (payload) => {
         const row = payload.new;
         if (row && typeof row === 'object') {
+          lastSeenUpdatedAt = row.updated_at || lastSeenUpdatedAt;
           onRow(row);
         }
       }

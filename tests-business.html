@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Тесты business services</title>
+  <style>
+    body { font-family: system-ui, sans-serif; padding: 16px; max-width: 760px; margin: 0 auto; }
+    .ok { color: #0f766e; }
+    .fail { color: #b91c1c; }
+    pre { background: #f3f6fb; padding: 12px; border-radius: 8px; overflow: auto; white-space: pre-wrap; }
+  </style>
+</head>
+<body>
+  <h1>Тесты <code>services/history-service.js</code> и <code>services/audit-service.js</code></h1>
+  <pre id="out"></pre>
+  <script type="module">
+    import {
+      collectPersonOperations,
+      filterOperationsByRange,
+      applyHistoryFilters,
+      summarizeOperations,
+    } from './services/history-service.js';
+    import { makeCsv } from './services/audit-service.js';
+
+    const lines = [];
+    let passed = 0;
+    let failed = 0;
+    function assert(cond, msg) {
+      if (cond) { passed++; lines.push('OK  ' + msg); }
+      else { failed++; lines.push('FAIL ' + msg); }
+    }
+
+    const salary = {
+      accrualLog: [{ serviceKey: 's1', name: 'A', amount: 100, at: '2026-03-01T10:00:00.000Z' }],
+      payoutLog: [
+        { id: 'p1', serviceKey: 's1', name: 'A', amount: 40, at: '2026-03-01T11:00:00.000Z', isDeleted: false },
+        { id: 'p2', serviceKey: 's1', name: 'A', amount: 20, at: '2026-03-01T12:00:00.000Z', isDeleted: true },
+      ],
+    };
+
+    const all = collectPersonOperations(salary, 's1', 'A');
+    assert(all.length === 3, 'collectPersonOperations собирает операции');
+
+    const ranged = filterOperationsByRange(
+      all,
+      new Date('2026-03-01T09:00:00.000Z'),
+      new Date('2026-03-01T23:59:59.999Z')
+    );
+    assert(ranged.length === 3, 'filterOperationsByRange фильтрует диапазон');
+
+    const filtered = applyHistoryFilters(ranged, { type: 'payout', minAmount: 30, search: '' });
+    assert(filtered.length === 1 && filtered[0].id === 'p1', 'applyHistoryFilters фильтрует по типу и сумме');
+
+    const sums = summarizeOperations(ranged);
+    assert(sums.accrual === 100 && sums.payout === 40 && sums.delta === 60, 'summarizeOperations считает итоги');
+
+    const csv = makeCsv([
+      ['col1', 'col2'],
+      ['a', '1'],
+      ['b,with,comma', '2'],
+    ]);
+    assert(csv.includes('"b,with,comma"'), 'makeCsv экранирует значения');
+
+    lines.push('');
+    lines.push('Итого: ' + passed + ' пройдено, ' + failed + ' провалено.');
+    const out = document.getElementById('out');
+    out.textContent = lines.join('\n');
+    out.className = failed === 0 ? 'ok' : 'fail';
+  </script>
+</body>
+</html>
+

@@ -1,7 +1,23 @@
 import { initCrmCloud, schedulePersist, setStateGetter, isConfigured } from './crm-cloud.js';
+import {
+  toNumber as toNumberCore,
+  formatMoney as formatMoneyCore,
+  formatPercentForMessage as formatPercentForMessageCore,
+  formatDateInputValue as formatDateInputValueCore,
+  parseDateInputValue as parseDateInputValueCore,
+  formatDateTimeRu,
+} from './core/formatters.js';
+import {
+  collectPersonOperations as collectPersonOperationsByPerson,
+  filterOperationsByRange as filterOperationsByRangeCore,
+  applyHistoryFilters,
+  summarizeOperations,
+} from './services/history-service.js';
+import { pushAuditLog, makeCsv } from './services/audit-service.js';
 
 const STORAGE_KEYS = {
   auth: 'calc_auth_role',
+  authLogin: 'calc_auth_login',
   theme: 'calc_theme_v1',
 };
 
@@ -114,9 +130,30 @@ function normalizeSalaryState(prevState) {
   }
   let payoutLog = [];
   if (prevState && Array.isArray(prevState.payoutLog)) {
-    payoutLog = prevState.payoutLog.filter(
-      (e) => e && typeof e === 'object' && e.serviceKey && e.name && typeof e.amount === 'number'
-    );
+    payoutLog = prevState.payoutLog
+      .filter((e) => e && typeof e === 'object' && e.serviceKey && e.name && typeof e.amount === 'number')
+      .map((e, idx) => {
+        const id =
+          typeof e.id === 'string' && e.id.trim()
+            ? e.id
+            : `${e.serviceKey}:${e.name}:${e.at || 'na'}:${idx}`;
+        const isDeleted = e.isDeleted === true;
+        const out = {
+          id,
+          serviceKey: e.serviceKey,
+          name: e.name,
+          amount: Math.abs(Number(e.amount) || 0),
+          at: e.at,
+          isDeleted,
+        };
+        if (isDeleted) {
+          out.deletedAt = e.deletedAt || e.at || new Date().toISOString();
+          out.deletedByRole = e.deletedByRole || null;
+          out.deletedByLogin = e.deletedByLogin || null;
+          out.deleteReason = typeof e.deleteReason === 'string' ? e.deleteReason : '';
+        }
+        return out;
+      });
   }
   let accrualLog = [];
   if (prevState && Array.isArray(prevState.accrualLog)) {
@@ -130,7 +167,60 @@ function normalizeSalaryState(prevState) {
         e.amount > 0
     );
   }
-  return { balances, payoutLog, accrualLog };
+  let payoutDeletionLog = [];
+  if (prevState && Array.isArray(prevState.payoutDeletionLog)) {
+    payoutDeletionLog = prevState.payoutDeletionLog
+      .filter(
+        (e) =>
+          e &&
+          typeof e === 'object' &&
+          e.serviceKey &&
+          e.name &&
+          typeof e.amount === 'number' &&
+          typeof e.reason === 'string' &&
+          e.reason.trim()
+      )
+      .map((e) => ({
+        payoutId: typeof e.payoutId === 'string' ? e.payoutId : '',
+        serviceKey: e.serviceKey,
+        name: e.name,
+        amount: Math.abs(Number(e.amount) || 0),
+        at: e.at || new Date().toISOString(),
+        byRole: e.byRole || null,
+        byLogin: e.byLogin || null,
+        reason: e.reason.trim(),
+      }));
+  } else if (payoutLog.length) {
+    // Миграция старых данных: если удалённые выплаты есть, но отдельного журнала нет.
+    payoutDeletionLog = payoutLog
+      .filter((e) => e.isDeleted && e.deleteReason)
+      .map((e) => ({
+        payoutId: e.id,
+        serviceKey: e.serviceKey,
+        name: e.name,
+        amount: e.amount,
+        at: e.deletedAt || e.at || new Date().toISOString(),
+        byRole: e.deletedByRole || null,
+        byLogin: e.deletedByLogin || null,
+        reason: e.deleteReason,
+      }));
+  }
+
+  let snapshots = [];
+  if (prevState && Array.isArray(prevState.snapshots)) {
+    snapshots = prevState.snapshots
+      .filter((s) => s && typeof s === 'object' && s.balances && s.payoutLog && s.accrualLog)
+      .slice(-5);
+  }
+
+  let auditLog = [];
+  if (prevState && Array.isArray(prevState.auditLog)) {
+    auditLog = prevState.auditLog
+      .filter((e) => e && typeof e === 'object' && e.action && e.at)
+      .slice(-1000);
+  }
+
+  return { balances, payoutLog, accrualLog, payoutDeletionLog, snapshots, auditLog };
 }
 
 function saveSalaryState() {
@@ -139,15 +229,30 @@ function saveSalaryState() {
 
 let SALARY = normalizeSalaryState(null);
 let currentRole = null;
+let currentUserLogin = null;
 
 let payoutTarget = { serviceKey: null, name: null };
 let personHistoryTarget = { serviceKey: null, name: null };
 /** Открытое направление в модалке «Зарплата» (для синхронизации из облака). */
 let salaryDetailOpenKey = null;
+let payoutDeleteTarget = null;
+const personHistoryFilters = {
+  type: 'all',
+  minAmount: 0,
+  search: '',
+};
 
 let settingsNavView = 'hub';
 let settingsDetailKey = null;
 let settingsDetailDirty = false;
+
+function setUiStatus(msg, kind = 'muted') {
+  if (!els.status) return;
+  els.status.textContent = msg;
+  const colorVar =
+    kind === 'ok' ? 'var(--ok)' : kind === 'danger' ? 'var(--danger)' : 'var(--muted)';
+  els.status.style.color = colorVar;
+}
 
 /** Активная вкладка: всегда ровно одна видима на экране. */
 let activePanel = 'distribution'; // 'distribution' | 'salary' | 'settings'
@@ -205,6 +310,17 @@ const els = {
   personHistoryBody: document.getElementById('personHistoryBody'),
   personHistoryDateFrom: document.getElementById('personHistoryDateFrom'),
   personHistoryDateTo: document.getElementById('personHistoryDateTo'),
+  personHistoryType: document.getElementById('personHistoryType'),
+  personHistoryMinAmount: document.getElementById('personHistoryMinAmount'),
+  personHistorySearch: document.getElementById('personHistorySearch'),
+  exportHistoryCsvBtn: document.getElementById('exportHistoryCsvBtn'),
+  takeSnapshotBtn: document.getElementById('takeSnapshotBtn'),
+  restoreSnapshotBtn: document.getElementById('restoreSnapshotBtn'),
+  payoutDeleteModal: document.getElementById('payoutDeleteModal'),
+  payoutDeleteSummary: document.getElementById('payoutDeleteSummary'),
+  payoutDeleteReason: document.getElementById('payoutDeleteReason'),
+  payoutDeleteStatus: document.getElementById('payoutDeleteStatus'),
+  payoutDeleteConfirmBtn: document.getElementById('payoutDeleteConfirmBtn'),
 };
 
 function applyTheme(theme) {
@@ -277,6 +393,9 @@ function accrueSalaryFromServices(services) {
       }
     }
   }
+  addAudit('accrual_calculated', {
+    services: Object.keys(services),
+  });
   saveSalaryState();
 }
 
@@ -330,21 +449,11 @@ function closeSalaryDetailModal() {
 }
 
 function formatDateInputValue(d) {
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  return `${y}-${m}-${day}`;
+  return formatDateInputValueCore(d);
 }
 
 function parseDateInputValue(str) {
-  if (!str || typeof str !== 'string') return null;
-  const p = str.split('-');
-  if (p.length !== 3) return null;
-  const y = Number(p[0]);
-  const m = Number(p[1]);
-  const d = Number(p[2]);
-  if (!Number.isFinite(y) || !Number.isFinite(m) || !Number.isFinite(d)) return null;
-  return new Date(y, m - 1, d);
+  return parseDateInputValueCore(str);
 }
 
 function getPersonHistoryDateRange() {
@@ -393,28 +502,32 @@ function setPersonHistoryPreset(preset) {
   renderPersonHistoryBody();
 }
 
+function canDeletePayout() {
+  return currentRole === 'owner' || currentRole === 'admin';
+}
+
+function getCurrentActor() {
+  const role = currentRole === 'owner' ? 'owner' : 'admin';
+  const login = currentUserLogin || (role === 'owner' ? USERS.owner.login : USERS.admin.login);
+  return { role, login };
+}
+
+function addAudit(action, meta = {}) {
+  const actor = getCurrentActor();
+  pushAuditLog(SALARY, {
+    action,
+    byRole: actor.role,
+    byLogin: actor.login,
+    meta,
+  });
+}
+
 function collectPersonOperations(serviceKey, name) {
-  const out = [];
-  const acc = SALARY.accrualLog || [];
-  const pay = SALARY.payoutLog || [];
-  for (const e of acc) {
-    if (e.serviceKey === serviceKey && e.name === name && e.amount > 0) {
-      out.push({ kind: 'accrual', amount: e.amount, at: e.at });
-    }
-  }
-  for (const e of pay) {
-    if (e.serviceKey === serviceKey && e.name === name && e.amount > 0) {
-      out.push({ kind: 'payout', amount: e.amount, at: e.at });
-    }
-  }
-  return out.sort((a, b) => new Date(a.at) - new Date(b.at));
+  return collectPersonOperationsByPerson(SALARY, serviceKey, name);
 }
 
 function filterOperationsByRange(ops, start, end) {
-  return ops.filter((o) => {
-    const t = new Date(o.at);
-    return !Number.isNaN(t.getTime()) && t >= start && t <= end;
-  });
+  return filterOperationsByRangeCore(ops, start, end);
 }
 
 function renderPersonHistoryBody() {
@@ -432,42 +545,41 @@ function renderPersonHistoryBody() {
   }
   const { start, end } = range;
   const all = collectPersonOperations(serviceKey, name);
-  const inRange = filterOperationsByRange(all, start, end);
-  let accSum = 0;
-  let paySum = 0;
-  for (const o of inRange) {
-    if (o.kind === 'accrual') accSum += o.amount;
-    else paySum += o.amount;
-  }
-  accSum = +accSum.toFixed(2);
-  paySum = +paySum.toFixed(2);
-  const delta = +(accSum - paySum).toFixed(2);
+  const ranged = filterOperationsByRange(all, start, end);
+  const inRange = applyHistoryFilters(ranged, personHistoryFilters);
+  const sums = summarizeOperations(inRange);
+  const accSum = sums.accrual;
+  const paySum = sums.payout;
+  const delta = sums.delta;
 
   const fmtDateLong = (d) =>
     d.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' });
-  const fmtDt = (iso) => {
-    const d = new Date(iso);
-    if (Number.isNaN(d.getTime())) return '—';
-    return d.toLocaleString('ru-RU', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-  };
+  const fmtDt = (iso) => formatDateTimeRu(iso);
 
   const rows = inRange
     .map((o) => {
       const isAcc = o.kind === 'accrual';
-      const label = isAcc ? 'Начисление' : 'Выплата';
-      const cls = isAcc ? 'salary-history-row--accrual' : 'salary-history-row--payout';
+      const isDeletedPayout = o.kind === 'payout_deleted';
+      const isPayout = o.kind === 'payout';
+      const label = isAcc ? 'Начисление' : isDeletedPayout ? 'Выплата (удалено)' : 'Выплата';
+      const cls = isAcc
+        ? 'salary-history-row--accrual'
+        : isDeletedPayout
+          ? 'salary-history-row--deleted'
+          : 'salary-history-row--payout';
       const sign = isAcc ? '+' : '−';
       const amt = formatMoney(o.amount);
+      const canDelete = isPayout && canDeletePayout() && o.id;
+      const action = isDeletedPayout
+        ? `<span class="salary-history-row__tag salary-history-row__tag--deleted">Удалено</span>`
+        : canDelete
+          ? `<button type="button" class="ghost small-btn salary-history-row__remove-btn" data-delete-payout-id="${escapeAttr(o.id)}" data-delete-service="${escapeAttr(serviceKey)}" data-delete-name="${escapeAttr(name)}" data-delete-amount="${escapeAttr(String(o.amount))}">Удалить</button>`
+          : '<span class="salary-history-row__action-placeholder">—</span>';
       return `<div class="salary-history-row ${cls}" role="row">
         <span class="salary-history-row__kind">${label}</span>
         <span class="salary-history-row__date">${escapeHtml(fmtDt(o.at))}</span>
         <span class="salary-history-row__amount">${sign}${escapeHtml(amt)}</span>
+        <span class="salary-history-row__action">${action}</span>
       </div>`;
     })
     .join('');
@@ -477,7 +589,7 @@ function renderPersonHistoryBody() {
   const listBlock = inRange.length
     ? `<div class="salary-history-table" role="table" aria-label="Операции за период">
         <div class="salary-history-list-head" role="row">
-          <span>Тип</span><span>Дата и время</span><span>Сумма</span>
+          <span>Тип</span><span>Дата и время</span><span>Сумма</span><span>Действие</span>
         </div>
         <div class="salary-history-list">${rows}</div>
       </div>`
@@ -486,6 +598,40 @@ function renderPersonHistoryBody() {
         <p class="salary-history-empty-title">Нет операций</p>
         <p class="salary-history-empty-sub">За выбранный период записей не было.</p>
       </div>`;
+
+  const deletionsInRange =
+    currentRole === 'owner'
+      ? (SALARY.payoutDeletionLog || []).filter((e) => {
+          if (e.serviceKey !== serviceKey || e.name !== name) return false;
+          const t = new Date(e.at);
+          return !Number.isNaN(t.getTime()) && t >= start && t <= end;
+        })
+      : [];
+
+  const deletionRows = deletionsInRange
+    .map(
+      (e) => `<div class="salary-deletion-row">
+        <span class="salary-deletion-row__meta">${escapeHtml(fmtDt(e.at))}</span>
+        <span class="salary-deletion-row__meta">${escapeHtml(e.byRole || '—')} / ${escapeHtml(e.byLogin || '—')}</span>
+        <span class="salary-deletion-row__sum">${escapeHtml(formatMoney(e.amount))}</span>
+        <span class="salary-deletion-row__reason">${escapeHtml(e.reason)}</span>
+      </div>`
+    )
+    .join('');
+  const deletionBlock =
+    currentRole === 'owner'
+      ? `<div class="salary-deletion-block">
+          <p class="salary-deletion-block__title">Журнал удалений выплат (только владелец)</p>
+          ${
+            deletionRows
+              ? `<div class="salary-deletion-table">
+                  <div class="salary-deletion-head"><span>Когда</span><span>Кто удалил</span><span>Сумма</span><span>Причина</span></div>
+                  <div class="salary-deletion-list">${deletionRows}</div>
+                </div>`
+              : '<p class="salary-deletion-empty">Удалений выплат за период нет.</p>'
+          }
+        </div>`
+      : '';
 
   els.personHistoryBody.innerHTML = `
     <div class="salary-history-summary">
@@ -510,11 +656,18 @@ function renderPersonHistoryBody() {
       <span class="salary-history-period-bar__value">${escapeHtml(periodLabel)}</span>
     </div>
     ${listBlock}
+    ${deletionBlock}
   `;
 }
 
 function openPersonHistoryModal(serviceKey, name) {
   personHistoryTarget = { serviceKey, name };
+  personHistoryFilters.type = 'all';
+  personHistoryFilters.minAmount = 0;
+  personHistoryFilters.search = '';
+  if (els.personHistoryType) els.personHistoryType.value = 'all';
+  if (els.personHistoryMinAmount) els.personHistoryMinAmount.value = '';
+  if (els.personHistorySearch) els.personHistorySearch.value = '';
   setPersonHistoryPreset('month');
   if (els.personHistoryModal) {
     els.personHistoryModal.classList.remove('hidden');
@@ -559,6 +712,138 @@ function closePayoutModal() {
   payoutTarget = { serviceKey: null, name: null };
 }
 
+function openPayoutDeleteModal(operation) {
+  if (!operation || !operation.id || !canDeletePayout() || !els.payoutDeleteModal) return;
+  payoutDeleteTarget = operation;
+  const svcTitle = PERCENTAGES[operation.serviceKey] ? PERCENTAGES[operation.serviceKey].title : operation.serviceKey;
+  if (els.payoutDeleteSummary) {
+    els.payoutDeleteSummary.textContent = `Удалить выплату ${formatMoney(operation.amount)} ₽ у «${operation.name}» (${svcTitle}) и вернуть сумму в баланс.`;
+  }
+  if (els.payoutDeleteReason) els.payoutDeleteReason.value = '';
+  if (els.payoutDeleteStatus) {
+    els.payoutDeleteStatus.textContent = '';
+    els.payoutDeleteStatus.style.color = '';
+  }
+  els.payoutDeleteModal.classList.remove('hidden');
+  els.payoutDeleteModal.setAttribute('aria-hidden', 'false');
+  setTimeout(() => els.payoutDeleteReason && els.payoutDeleteReason.focus(), 0);
+}
+
+function closePayoutDeleteModal() {
+  if (!els.payoutDeleteModal) return;
+  els.payoutDeleteModal.classList.add('hidden');
+  els.payoutDeleteModal.setAttribute('aria-hidden', 'true');
+  payoutDeleteTarget = null;
+}
+
+function takeSalarySnapshot() {
+  if (!Array.isArray(SALARY.snapshots)) SALARY.snapshots = [];
+  SALARY.snapshots.push({
+    at: new Date().toISOString(),
+    balances: deepClone(SALARY.balances || {}),
+    payoutLog: deepClone(SALARY.payoutLog || []),
+    accrualLog: deepClone(SALARY.accrualLog || []),
+    payoutDeletionLog: deepClone(SALARY.payoutDeletionLog || []),
+  });
+  // Храним только последние 5 снимков
+  if (SALARY.snapshots.length > 5) SALARY.snapshots = SALARY.snapshots.slice(-5);
+  addAudit('snapshot_take', { snapshots: SALARY.snapshots.length });
+  saveSalaryState();
+  setUiStatus('Снимок состояния сохранён.', 'ok');
+}
+
+function restoreLastSalarySnapshot() {
+  const snapshots = Array.isArray(SALARY.snapshots) ? SALARY.snapshots : [];
+  if (!snapshots.length) {
+    setUiStatus('Нет снимков для отката.', 'danger');
+    return;
+  }
+  if (!window.confirm('Откатить состояние к последнему снимку?')) return;
+  const s = snapshots[snapshots.length - 1];
+  SALARY.balances = deepClone(s.balances || {});
+  SALARY.payoutLog = deepClone(s.payoutLog || []);
+  SALARY.accrualLog = deepClone(s.accrualLog || []);
+  SALARY.payoutDeletionLog = deepClone(s.payoutDeletionLog || []);
+  addAudit('snapshot_restore', { at: s.at || null });
+  saveSalaryState();
+  renderSalaryModule();
+  if (salaryDetailOpenKey && els.salaryDetailModal && !els.salaryDetailModal.classList.contains('hidden')) {
+    renderSalaryDetailBody(salaryDetailOpenKey);
+  }
+  if (els.personHistoryModal && !els.personHistoryModal.classList.contains('hidden')) {
+    renderPersonHistoryBody();
+  }
+  setUiStatus('Состояние откатили к последнему снимку.', 'ok');
+}
+
+function confirmPayoutDelete() {
+  if (!canDeletePayout() || !payoutDeleteTarget || !els.payoutDeleteReason) return;
+  const reason = String(els.payoutDeleteReason.value || '').trim();
+  if (!reason) {
+    if (els.payoutDeleteStatus) {
+      els.payoutDeleteStatus.textContent = 'Причина удаления обязательна.';
+      els.payoutDeleteStatus.style.color = 'var(--danger)';
+    }
+    return;
+  }
+
+  const { id, serviceKey, name } = payoutDeleteTarget;
+  const payout = (SALARY.payoutLog || []).find((e) => e.id === id && e.serviceKey === serviceKey && e.name === name);
+  if (!payout || payout.isDeleted) {
+    if (els.payoutDeleteStatus) {
+      els.payoutDeleteStatus.textContent = 'Эта выплата уже удалена или не найдена.';
+      els.payoutDeleteStatus.style.color = 'var(--danger)';
+    }
+    return;
+  }
+
+  if (!SALARY.balances[serviceKey]) SALARY.balances[serviceKey] = {};
+  if (SALARY.balances[serviceKey][name] === undefined) SALARY.balances[serviceKey][name] = 0;
+  SALARY.balances[serviceKey][name] = +(SALARY.balances[serviceKey][name] + payout.amount).toFixed(2);
+
+  const actor = getCurrentActor();
+  const deletedAt = new Date().toISOString();
+  payout.isDeleted = true;
+  payout.deletedAt = deletedAt;
+  payout.deletedByRole = actor.role;
+  payout.deletedByLogin = actor.login;
+  payout.deleteReason = reason;
+
+  if (!Array.isArray(SALARY.payoutDeletionLog)) SALARY.payoutDeletionLog = [];
+  SALARY.payoutDeletionLog.push({
+    payoutId: payout.id,
+    serviceKey,
+    name,
+    amount: payout.amount,
+    at: deletedAt,
+    byRole: actor.role,
+    byLogin: actor.login,
+    reason,
+  });
+  addAudit('payout_deleted', {
+    payoutId: payout.id,
+    serviceKey,
+    name,
+    amount: payout.amount,
+    reason,
+  });
+
+  saveSalaryState();
+  closePayoutDeleteModal();
+  renderSalaryModule();
+  if (salaryDetailOpenKey && els.salaryDetailModal && !els.salaryDetailModal.classList.contains('hidden')) {
+    renderSalaryDetailBody(salaryDetailOpenKey);
+  }
+  if (
+    personHistoryTarget.serviceKey === serviceKey &&
+    personHistoryTarget.name === name &&
+    els.personHistoryModal &&
+    !els.personHistoryModal.classList.contains('hidden')
+  ) {
+    renderPersonHistoryBody();
+  }
+}
+
 function confirmPayout() {
   const { serviceKey, name } = payoutTarget;
   if (!serviceKey || !name || !els.payoutAmountInput) return;
@@ -589,12 +874,18 @@ function confirmPayout() {
   if (!SALARY.balances[serviceKey]) SALARY.balances[serviceKey] = {};
   if (SALARY.balances[serviceKey][name] === undefined) SALARY.balances[serviceKey][name] = 0;
   SALARY.balances[serviceKey][name] = +(SALARY.balances[serviceKey][name] - amount).toFixed(2);
+  const actor = getCurrentActor();
   SALARY.payoutLog.push({
+    id: `${Date.now()}-${Math.random().toString(16).slice(2, 10)}`,
     serviceKey,
     name,
     amount,
     at: new Date().toISOString(),
+    isDeleted: false,
+    createdByRole: actor.role,
+    createdByLogin: actor.login,
   });
+  addAudit('payout_created', { serviceKey, name, amount });
   saveSalaryState();
   const reopenKey = serviceKey;
   closePayoutModal();
@@ -630,21 +921,15 @@ function renderSalaryModule() {
 }
 
 function toNumber(value) {
-  if (value === '' || value === null || value === undefined) return 0;
-  return Number(String(value).replace(',', '.')) || 0;
+  return toNumberCore(value);
 }
 
 function formatMoney(num) {
-  return new Intl.NumberFormat('ru-RU', {
-    minimumFractionDigits: Number.isInteger(num) ? 0 : 2,
-    maximumFractionDigits: 2,
-  }).format(num);
+  return formatMoneyCore(num);
 }
 
 function formatPercentForMessage(total) {
-  const x = Math.round(total * 100) / 100;
-  if (Number.isInteger(x)) return String(x);
-  return String(x);
+  return formatPercentForMessageCore(total);
 }
 
 function collectPercentIssues(structure) {
@@ -852,12 +1137,12 @@ function login() {
   const password = els.passwordInput.value.trim();
 
   if (loginVal === USERS.admin.login && password === USERS.admin.password) {
-    setAuth('admin');
+    setAuth('admin', loginVal);
     return;
   }
 
   if (loginVal === USERS.owner.login && password === USERS.owner.password) {
-    setAuth('owner');
+    setAuth('owner', loginVal);
     return;
   }
 
@@ -866,9 +1151,11 @@ function login() {
   els.loginStatus.style.color = 'var(--danger)';
 }
 
-function setAuth(role) {
+function setAuth(role, loginVal) {
   currentRole = role;
+  currentUserLogin = loginVal || (role === 'owner' ? USERS.owner.login : USERS.admin.login);
   localStorage.setItem(STORAGE_KEYS.auth, role);
+  localStorage.setItem(STORAGE_KEYS.authLogin, currentUserLogin);
   els.loginScreen.classList.add('hidden');
   els.appScreen.classList.remove('hidden');
   els.loginStatus.textContent = '';
@@ -884,7 +1171,9 @@ function setAuth(role) {
 
 function logout() {
   currentRole = null;
+  currentUserLogin = null;
   localStorage.removeItem(STORAGE_KEYS.auth);
+  localStorage.removeItem(STORAGE_KEYS.authLogin);
   els.appScreen.classList.add('hidden');
   els.loginScreen.classList.remove('hidden');
   activePanel = 'distribution';
@@ -1169,6 +1458,7 @@ function saveSettings() {
   PERCENTAGES = newStructure;
   savePercentages();
   syncSalaryWithPercentages();
+  addAudit('percentages_updated', { source: 'settings' });
   els.settingsStatus.textContent = 'Настройки сохранены.';
   els.settingsStatus.style.color = 'var(--ok)';
   updateLoadWarningBanner();
@@ -1277,6 +1567,7 @@ function importPercentagesFromFile(file) {
       PERCENTAGES = mergePercentagesFromParsed(parsed);
       savePercentages();
       syncSalaryWithPercentages();
+      addAudit('percentages_imported', { source: 'json_import' });
       updateLoadWarningBanner();
       els.settingsStatus.textContent = 'Импорт выполнен.';
       els.settingsStatus.style.color = 'var(--ok)';
@@ -1293,8 +1584,9 @@ function importPercentagesFromFile(file) {
 
 function boot() {
   const savedRole = localStorage.getItem(STORAGE_KEYS.auth);
+  const savedLogin = localStorage.getItem(STORAGE_KEYS.authLogin);
   if (savedRole === 'admin' || savedRole === 'owner') {
-    setAuth(savedRole);
+    setAuth(savedRole, savedLogin || undefined);
   } else {
     els.loginScreen.classList.remove('hidden');
     els.appScreen.classList.add('hidden');
@@ -1377,9 +1669,20 @@ if (els.salaryDetailModal) {
 if (els.personHistoryModal) {
   els.personHistoryModal.addEventListener('click', (e) => {
     const b = e.target.closest('[data-person-history-preset]');
-    if (!b) return;
-    const preset = b.getAttribute('data-person-history-preset');
-    if (preset === 'month' || preset === '30' || preset === 'prevMonth') setPersonHistoryPreset(preset);
+    if (b) {
+      const preset = b.getAttribute('data-person-history-preset');
+      if (preset === 'month' || preset === '30' || preset === 'prevMonth') setPersonHistoryPreset(preset);
+      return;
+    }
+    const d = e.target.closest('[data-delete-payout-id]');
+    if (!d) return;
+    e.preventDefault();
+    openPayoutDeleteModal({
+      id: d.getAttribute('data-delete-payout-id'),
+      serviceKey: d.getAttribute('data-delete-service'),
+      name: d.getAttribute('data-delete-name'),
+      amount: Number(d.getAttribute('data-delete-amount')),
+    });
   });
 }
 
@@ -1388,15 +1691,77 @@ function onPersonHistoryDateChange() {
   renderPersonHistoryBody();
 }
 
+function onPersonHistoryFilterChange() {
+  personHistoryFilters.type = (els.personHistoryType && els.personHistoryType.value) || 'all';
+  personHistoryFilters.minAmount = toNumber(els.personHistoryMinAmount && els.personHistoryMinAmount.value);
+  personHistoryFilters.search = String((els.personHistorySearch && els.personHistorySearch.value) || '').trim();
+  renderPersonHistoryBody();
+}
+
+function exportPersonHistoryCsv() {
+  if (!personHistoryTarget.serviceKey || !personHistoryTarget.name) return;
+  const range = getPersonHistoryDateRange();
+  if (!range) {
+    setUiStatus('Сначала задайте корректный период для экспорта.', 'danger');
+    return;
+  }
+  const { serviceKey, name } = personHistoryTarget;
+  const all = collectPersonOperations(serviceKey, name);
+  const ranged = filterOperationsByRange(all, range.start, range.end);
+  const ops = applyHistoryFilters(ranged, personHistoryFilters);
+
+  const rows = [['Тип', 'Дата', 'Сумма', 'ID']];
+  for (const o of ops) {
+    rows.push([o.kind, formatDateTimeRu(o.at), o.amount, o.id || '']);
+  }
+  const csv = makeCsv(rows);
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `history-${serviceKey}-${name}-${Date.now()}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+  addAudit('history_export_csv', {
+    serviceKey,
+    name,
+    rows: ops.length,
+  });
+  setUiStatus('CSV-отчёт выгружен.', 'ok');
+}
+
 if (els.personHistoryDateFrom) {
   els.personHistoryDateFrom.addEventListener('change', onPersonHistoryDateChange);
 }
 if (els.personHistoryDateTo) {
   els.personHistoryDateTo.addEventListener('change', onPersonHistoryDateChange);
 }
+if (els.personHistoryType) {
+  els.personHistoryType.addEventListener('change', onPersonHistoryFilterChange);
+}
+if (els.personHistoryMinAmount) {
+  els.personHistoryMinAmount.addEventListener('input', onPersonHistoryFilterChange);
+}
+if (els.personHistorySearch) {
+  els.personHistorySearch.addEventListener('input', onPersonHistoryFilterChange);
+}
+if (els.exportHistoryCsvBtn) {
+  els.exportHistoryCsvBtn.addEventListener('click', exportPersonHistoryCsv);
+}
+if (els.takeSnapshotBtn) {
+  els.takeSnapshotBtn.addEventListener('click', takeSalarySnapshot);
+}
+if (els.restoreSnapshotBtn) {
+  els.restoreSnapshotBtn.addEventListener('click', restoreLastSalarySnapshot);
+}
 
 if (els.payoutConfirmBtn) {
   els.payoutConfirmBtn.addEventListener('click', confirmPayout);
+}
+if (els.payoutDeleteConfirmBtn) {
+  els.payoutDeleteConfirmBtn.addEventListener('click', confirmPayoutDelete);
 }
 
 if (els.payoutAmountInput) {
@@ -1407,6 +1772,7 @@ if (els.payoutAmountInput) {
 
 els.appScreen.addEventListener('click', (e) => {
   if (e.target.closest('[data-modal-close="payout"]')) closePayoutModal();
+  if (e.target.closest('[data-modal-close="payoutDelete"]')) closePayoutDeleteModal();
   if (e.target.closest('[data-modal-close="salaryDetail"]')) closeSalaryDetailModal();
   if (e.target.closest('[data-modal-close="personHistory"]')) closePersonHistoryModal();
 });
@@ -1415,6 +1781,10 @@ document.addEventListener('keydown', (e) => {
   if (e.key !== 'Escape') return;
   if (els.payoutModal && !els.payoutModal.classList.contains('hidden')) {
     closePayoutModal();
+    return;
+  }
+  if (els.payoutDeleteModal && !els.payoutDeleteModal.classList.contains('hidden')) {
+    closePayoutDeleteModal();
     return;
   }
   if (els.personHistoryModal && !els.personHistoryModal.classList.contains('hidden')) {
@@ -1488,11 +1858,26 @@ function hideBootOverlay() {
 
 async function startup() {
   setStateGetter(() => ({ percentages: PERCENTAGES, salary: SALARY }));
-  window.__crmCloudPersistError = () => {
-    if (els.status) {
-      els.status.textContent = 'Не удалось сохранить в облако. Проверьте сеть.';
-      els.status.style.color = 'var(--danger)';
+  window.addEventListener('error', (e) => {
+    addAudit('client_error', {
+      message: e.message || 'unknown',
+      source: e.filename || '',
+      line: e.lineno || 0,
+    });
+    saveSalaryState();
+  });
+  window.addEventListener('unhandledrejection', (e) => {
+    addAudit('client_unhandled_rejection', {
+      reason: String(e.reason || 'unknown'),
+    });
+    saveSalaryState();
+  });
+  window.__crmCloudPersistError = (err) => {
+    if (err && err.code === 'optimistic_conflict') {
+      setUiStatus('Обнаружен конфликт изменений. Данные были обновлены с другого клиента, обновите действие.', 'danger');
+      return;
     }
+    setUiStatus('Не удалось сохранить в облако. Проверьте сеть.', 'danger');
   };
 
   initTheme();

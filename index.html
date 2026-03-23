@@ -6,6 +6,8 @@
   <meta name="color-scheme" content="light dark" />
   <title>Too CRM</title>
   <link rel="icon" href="assets/favicon.svg" type="image/svg+xml" sizes="any" />
+  <link rel="icon" href="assets/favicon-32.png" type="image/png" sizes="32x32" />
+  <link rel="apple-touch-icon" href="assets/apple-touch-icon.png" sizes="180x180" />
   <script>
     (function () {
       try {
@@ -62,12 +64,11 @@
           id="brandLogo"
           class="app-brand__logo"
           src="assets/logo.svg"
-          width="36"
-          height="42"
+          width="44"
+          height="52"
           alt=""
           decoding="async"
         />
-        <span class="app-brand__name">Too CRM</span>
       </h1>
     </header>
     <button type="button" class="app-role-fab" id="roleBadge" aria-label="">
@@ -130,6 +131,10 @@
       <div id="salaryCard" class="card hidden">
         <div class="settings-head">
           <h3>Зарплата</h3>
+        </div>
+        <div class="salary-tools">
+          <button type="button" class="ghost small-btn" id="takeSnapshotBtn">Снимок состояния</button>
+          <button type="button" class="ghost small-btn" id="restoreSnapshotBtn">Откат к последнему снимку</button>
         </div>
         <p class="sub salary-card-hint">Балансы по направлениям. Нажми направление — список строк и выплаты; нажми имя — история по периоду. Начисление — при «Рассчитать».</p>
         <div class="salary-card-scroll">
@@ -253,6 +258,28 @@
                 <input id="personHistoryDateTo" type="date" />
               </div>
             </div>
+            <div class="salary-history-filters">
+              <div class="input-block input-block--inline">
+                <label for="personHistoryType">Тип</label>
+                <select id="personHistoryType">
+                  <option value="all">Все</option>
+                  <option value="accrual">Начисления</option>
+                  <option value="payout">Выплаты</option>
+                  <option value="payout_deleted">Удалённые выплаты</option>
+                </select>
+              </div>
+              <div class="input-block input-block--inline">
+                <label for="personHistoryMinAmount">Мин. сумма</label>
+                <input id="personHistoryMinAmount" type="number" inputmode="decimal" min="0" step="0.01" placeholder="0" />
+              </div>
+              <div class="input-block input-block--inline">
+                <label for="personHistorySearch">Поиск</label>
+                <input id="personHistorySearch" type="text" placeholder="Тип, сумма, дата..." />
+              </div>
+            </div>
+            <div class="salary-history-actions">
+              <button type="button" class="ghost small-btn" id="exportHistoryCsvBtn">Экспорт CSV</button>
+            </div>
           </div>
           <div id="personHistoryBody" class="salary-history-content"></div>
         </div>
@@ -276,6 +303,28 @@
           <div class="modal__actions">
             <button type="button" class="ghost" data-modal-close="payout">Отмена</button>
             <button type="button" class="primary" id="payoutConfirmBtn">Подтвердить</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="payoutDeleteModal" class="modal hidden" aria-hidden="true">
+      <div class="modal__backdrop" data-modal-close="payoutDelete" tabindex="-1"></div>
+      <div class="modal__panel modal__panel--sm" role="dialog" aria-modal="true" aria-labelledby="payoutDeleteTitle">
+        <div class="modal__head">
+          <h3 id="payoutDeleteTitle" class="modal__title">Удалить выплату</h3>
+          <button type="button" class="ghost small-btn modal__close" data-modal-close="payoutDelete" aria-label="Закрыть">×</button>
+        </div>
+        <div class="modal__body">
+          <p class="muted" id="payoutDeleteSummary"></p>
+          <div class="input-block input-block--modal">
+            <label for="payoutDeleteReason">Причина удаления (обязательно)</label>
+            <textarea id="payoutDeleteReason" rows="3" placeholder="Например: выплата добавлена по ошибке"></textarea>
+          </div>
+          <p class="status" id="payoutDeleteStatus" aria-live="polite"></p>
+          <div class="modal__actions">
+            <button type="button" class="ghost" data-modal-close="payoutDelete">Отмена</button>
+            <button type="button" class="danger" id="payoutDeleteConfirmBtn">Удалить выплату</button>
           </div>
         </div>
       </div>
