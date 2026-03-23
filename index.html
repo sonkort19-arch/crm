@@ -2,7 +2,7 @@
 <html lang="ru" data-theme="light">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content" />
   <meta name="color-scheme" content="light dark" />
   <title>Too CRM</title>
   <link rel="icon" href="assets/favicon.svg" type="image/svg+xml" sizes="any" />
@@ -15,6 +15,48 @@
         var t = localStorage.getItem(k);
         if (t === 'dark' || t === 'light') document.documentElement.setAttribute('data-theme', t);
       } catch (e) {}
+    })();
+  </script>
+  <script>
+    (function () {
+      var root = document.documentElement;
+      function syncVisualViewport() {
+        var vv = window.visualViewport;
+        if (vv) {
+          root.style.setProperty('--vv-height', Math.round(vv.height) + 'px');
+          root.style.setProperty('--vv-offset-top', Math.round(vv.offsetTop) + 'px');
+        } else {
+          root.style.setProperty('--vv-height', window.innerHeight + 'px');
+          root.style.setProperty('--vv-offset-top', '0px');
+        }
+      }
+      syncVisualViewport();
+      if (window.visualViewport) {
+        visualViewport.addEventListener('resize', syncVisualViewport);
+        visualViewport.addEventListener('scroll', syncVisualViewport);
+      }
+      window.addEventListener('resize', syncVisualViewport);
+      window.addEventListener('orientationchange', function () {
+        setTimeout(syncVisualViewport, 250);
+      });
+      document.addEventListener('visibilitychange', function () {
+        if (!document.hidden) syncVisualViewport();
+      });
+      function syncAfterFieldFocus() {
+        requestAnimationFrame(syncVisualViewport);
+        setTimeout(syncVisualViewport, 120);
+        setTimeout(syncVisualViewport, 350);
+      }
+      window.addEventListener('focusin', function (e) {
+        var t = e.target;
+        if (!t || !t.tagName) return;
+        var tag = t.tagName;
+        if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') syncAfterFieldFocus();
+      });
+      window.addEventListener('focusout', function () {
+        requestAnimationFrame(syncVisualViewport);
+        setTimeout(syncVisualViewport, 120);
+      });
     })();
   </script>
   <!-- Шрифт Manrope: локальный manrope.css (без npm-зависимостей для рантайма). -->
