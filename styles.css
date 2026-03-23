@@ -473,6 +473,27 @@ body.calculator-open #calculatorBtn.app-nav__btn:focus-visible {
   padding: 12px;
   user-select: none;
   -webkit-user-select: none;
+  position: relative;
+}
+
+.calculator-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.calculator-top-btn {
+  width: 42px;
+  min-height: 42px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: color-mix(in srgb, var(--surface-2) 70%, var(--card));
+  color: var(--text);
+  font-size: 1.1rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .calculator-screen {
@@ -531,6 +552,94 @@ body.calculator-open #calculatorBtn.app-nav__btn:focus-visible {
 
 .calculator-btn--zero {
   grid-column: span 2;
+}
+
+.calculator-history {
+  position: absolute;
+  inset: 0;
+  z-index: 6;
+}
+
+.calculator-history__backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(2, 6, 23, 0.42);
+  backdrop-filter: blur(4px);
+}
+
+.calculator-history__sheet {
+  position: absolute;
+  left: 10px;
+  right: 10px;
+  bottom: 10px;
+  max-height: min(58vh, 460px);
+  background: color-mix(in srgb, var(--card) 88%, transparent);
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  box-shadow: var(--shadow-lg);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.calculator-history__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--line);
+}
+
+.calculator-history__head h3 {
+  margin: 0;
+  font-size: 14px;
+}
+
+.calculator-history__close {
+  width: 34px;
+  min-height: 34px;
+  padding: 0;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: var(--surface-2);
+}
+
+.calculator-history__list {
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.calculator-history__item {
+  text-align: left;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 8px 10px;
+  background: color-mix(in srgb, var(--surface-2) 50%, var(--card));
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.calculator-history__expr {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.calculator-history__result {
+  font-size: 22px;
+  line-height: 1.1;
+  color: var(--text);
+}
+
+.calculator-history__empty {
+  margin: 14px 8px;
+  color: var(--muted);
+  text-align: center;
+  font-size: 13px;
 }
 
 .card {
@@ -1922,7 +2031,77 @@ body.salary-open #salaryCard.hidden {
   }
 
   .calculator-grid {
-    gap: 7px;
+    gap: 6px;
+  }
+}
+
+@media (max-width: 700px) {
+  body.calculator-open .app-sidebar,
+  body.calculator-open .app-brand,
+  body.calculator-open .app-role-fab,
+  body.calculator-open .theme-fab {
+    display: none !important;
+  }
+
+  body.calculator-open .wrap.app-shell {
+    max-width: 100%;
+    padding-left: 0 !important;
+    margin: 0;
+  }
+
+  body.calculator-open .app-main {
+    padding-top: 0;
+  }
+
+  body.calculator-open #calculatorCard {
+    display: flex !important;
+    position: fixed;
+    inset: 0;
+    z-index: 120;
+    margin: 0;
+    max-width: none;
+    border-radius: 0;
+    border: 0;
+    padding: calc(10px + env(safe-area-inset-top)) 10px calc(12px + env(safe-area-inset-bottom));
+    box-shadow: none;
+    background: var(--bg-top);
+    flex-direction: column;
+  }
+
+  body.calculator-open #calculatorCard .calculator-screen {
+    min-height: 108px;
+    font-size: clamp(2.2rem, 10vw, 3.6rem);
+  }
+
+  body.calculator-open #calculatorCard .calculator-grid {
+    margin-top: 10px;
+    gap: 8px;
+    flex: 1;
+  }
+
+  body.calculator-open #calculatorCard .calculator-btn {
+    min-height: clamp(62px, 11.8vw, 82px);
+    font-size: clamp(1.2rem, 5vw, 1.75rem);
+    border-radius: 999px;
+  }
+
+  body.calculator-open #calculatorCard .calculator-btn--zero {
+    border-radius: 999px;
+  }
+
+  body.calculator-open #calculatorCard .calculator-topbar {
+    margin-bottom: 10px;
+  }
+
+  body.calculator-open #calculatorCard .calculator-top-btn {
+    width: 40px;
+    min-height: 40px;
+  }
+
+  body.calculator-open #calculatorCard .calculator-history__sheet {
+    left: 8px;
+    right: 8px;
+    bottom: calc(8px + env(safe-area-inset-bottom));
   }
 }
 

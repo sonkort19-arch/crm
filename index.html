@@ -151,6 +151,10 @@
       </div>
 
       <div id="calculatorCard" class="card calculator-card hidden">
+        <div class="calculator-topbar">
+          <button type="button" class="calculator-top-btn" id="calculatorHistoryBtn" aria-label="История вычислений">🕘</button>
+          <button type="button" class="calculator-top-btn" id="calculatorBackBtn" aria-label="Назад в меню">←</button>
+        </div>
         <div class="calculator-screen" id="calculatorScreen" aria-live="polite">0</div>
         <div class="calculator-grid" id="calculatorGrid">
           <button type="button" class="calculator-btn calculator-btn--func" data-calc-action="clear">C</button>
@@ -176,6 +180,16 @@
           <button type="button" class="calculator-btn calculator-btn--zero" data-calc-digit="0">0</button>
           <button type="button" class="calculator-btn" data-calc-action="dot">.</button>
           <button type="button" class="calculator-btn calculator-btn--op" data-calc-action="equals">=</button>
+        </div>
+        <div class="calculator-history hidden" id="calculatorHistoryPanel" aria-hidden="true">
+          <div class="calculator-history__backdrop" id="calculatorHistoryCloseArea"></div>
+          <div class="calculator-history__sheet" role="dialog" aria-modal="true" aria-label="История калькулятора">
+            <div class="calculator-history__head">
+              <h3>История</h3>
+              <button type="button" class="calculator-history__close" id="calculatorHistoryCloseBtn" aria-label="Закрыть">×</button>
+            </div>
+            <div class="calculator-history__list" id="calculatorHistoryList"></div>
+          </div>
         </div>
       </div>
 

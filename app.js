@@ -259,12 +259,15 @@ function setUiStatus(msg, kind = 'muted') {
 let activePanel = 'distribution'; // 'distribution' | 'salary' | 'settings' | 'calculator'
 
 const CALC_MAX_LEN = 14;
+const CALC_HISTORY_LIMIT = 20;
 const calculatorState = {
   display: '0',
   stored: null,
   operator: null,
   waitingNext: false,
   error: false,
+  expression: '',
+  history: [],
 };
 
 const els = {
@@ -285,6 +288,12 @@ const els = {
   calculatorCard: document.getElementById('calculatorCard'),
   calculatorScreen: document.getElementById('calculatorScreen'),
   calculatorGrid: document.getElementById('calculatorGrid'),
+  calculatorBackBtn: document.getElementById('calculatorBackBtn'),
+  calculatorHistoryBtn: document.getElementById('calculatorHistoryBtn'),
+  calculatorHistoryPanel: document.getElementById('calculatorHistoryPanel'),
+  calculatorHistoryList: document.getElementById('calculatorHistoryList'),
+  calculatorHistoryCloseBtn: document.getElementById('calculatorHistoryCloseBtn'),
+  calculatorHistoryCloseArea: document.getElementById('calculatorHistoryCloseArea'),
   settingsCard: document.getElementById('settingsCard'),
   settingsContent: document.getElementById('settingsContent'),
   saveSettingsBtn: document.getElementById('saveSettingsBtn'),
@@ -1161,10 +1170,62 @@ function normalizeCalcText(str) {
   return n.toPrecision(Math.max(6, CALC_MAX_LEN - 6));
 }
 
+function calcOperatorSymbol(operator) {
+  if (operator === 'add') return '+';
+  if (operator === 'subtract') return '−';
+  if (operator === 'multiply') return '×';
+  if (operator === 'divide') return '÷';
+  return '';
+}
+
+function normalizeExprOperand(text) {
+  const n = Number(text);
+  if (!Number.isFinite(n)) return '0';
+  return String(n);
+}
+
 function renderCalculator() {
   if (!els.calculatorScreen) return;
   const text = calculatorState.display || '0';
   els.calculatorScreen.textContent = text;
+}
+
+function renderCalculatorHistory() {
+  if (!els.calculatorHistoryList) return;
+  if (!calculatorState.history.length) {
+    els.calculatorHistoryList.innerHTML = '<p class="calculator-history__empty">История пуста.</p>';
+    return;
+  }
+  els.calculatorHistoryList.innerHTML = calculatorState.history
+    .map(
+      (item, idx) => `<button type="button" class="calculator-history__item" data-calc-history-index="${idx}">
+        <span class="calculator-history__expr">${escapeHtml(item.expr)}</span>
+        <strong class="calculator-history__result">${escapeHtml(item.result)}</strong>
+      </button>`
+    )
+    .join('');
+}
+
+function openCalculatorHistory() {
+  if (!els.calculatorHistoryPanel) return;
+  renderCalculatorHistory();
+  els.calculatorHistoryPanel.classList.remove('hidden');
+  els.calculatorHistoryPanel.setAttribute('aria-hidden', 'false');
+}
+
+function closeCalculatorHistory() {
+  if (!els.calculatorHistoryPanel) return;
+  els.calculatorHistoryPanel.classList.add('hidden');
+  els.calculatorHistoryPanel.setAttribute('aria-hidden', 'true');
+}
+
+function pushCalculatorHistory(expr, result) {
+  const item = { expr: String(expr || '').trim(), result: String(result || '').trim() };
+  if (!item.expr || !item.result) return;
+  calculatorState.history.unshift(item);
+  if (calculatorState.history.length > CALC_HISTORY_LIMIT) {
+    calculatorState.history = calculatorState.history.slice(0, CALC_HISTORY_LIMIT);
+  }
 }
 
 function resetCalculator() {
@@ -1173,6 +1234,7 @@ function resetCalculator() {
   calculatorState.operator = null;
   calculatorState.waitingNext = false;
   calculatorState.error = false;
+  calculatorState.expression = '';
   renderCalculator();
 }
 
@@ -1259,18 +1321,44 @@ function computePendingCalc() {
 
 function chooseCalcOperator(operator) {
   if (calculatorState.error) return;
+  const symbol = calcOperatorSymbol(operator);
+  if (!symbol) return;
+  if (calculatorState.waitingNext) {
+    if (calculatorState.expression) {
+      calculatorState.expression = calculatorState.expression.replace(/[+\-−×÷]\s*$/, symbol);
+    } else {
+      calculatorState.expression = `${normalizeExprOperand(calculatorState.display)} ${symbol}`;
+    }
+    calculatorState.operator = operator;
+    return;
+  }
+  const operand = normalizeExprOperand(calculatorState.display);
+  if (!calculatorState.expression) {
+    calculatorState.expression = operand;
+  } else {
+    calculatorState.expression = `${calculatorState.expression} ${operand}`;
+  }
   computePendingCalc();
   if (calculatorState.error) return;
   calculatorState.operator = operator;
   calculatorState.waitingNext = true;
+  calculatorState.expression = `${calculatorState.expression} ${symbol}`;
 }
 
 function equalCalc() {
   if (calculatorState.error) return;
+  if (calculatorState.waitingNext && calculatorState.operator) return;
+  const operand = normalizeExprOperand(calculatorState.display);
+  const expr = calculatorState.expression
+    ? `${calculatorState.expression} ${operand}`.trim()
+    : operand;
   computePendingCalc();
   if (calculatorState.error) return;
+  const result = normalizeExprOperand(calculatorState.display);
+  pushCalculatorHistory(expr, result);
   calculatorState.operator = null;
   calculatorState.waitingNext = true;
+  calculatorState.expression = '';
 }
 
 function calcBackspace() {
@@ -1331,6 +1419,35 @@ function initCalculator() {
       }
     });
   }
+  if (els.calculatorBackBtn) {
+    els.calculatorBackBtn.addEventListener('click', showDistribution);
+  }
+  if (els.calculatorHistoryBtn) {
+    els.calculatorHistoryBtn.addEventListener('click', openCalculatorHistory);
+  }
+  if (els.calculatorHistoryCloseBtn) {
+    els.calculatorHistoryCloseBtn.addEventListener('click', closeCalculatorHistory);
+  }
+  if (els.calculatorHistoryCloseArea) {
+    els.calculatorHistoryCloseArea.addEventListener('click', closeCalculatorHistory);
+  }
+  if (els.calculatorHistoryList) {
+    els.calculatorHistoryList.addEventListener('click', (e) => {
+      const btn = e.target.closest('[data-calc-history-index]');
+      if (!btn) return;
+      const idx = Number(btn.getAttribute('data-calc-history-index'));
+      const row = Number.isFinite(idx) && idx >= 0 ? calculatorState.history[idx] : null;
+      if (!row) return;
+      calculatorState.display = row.result;
+      calculatorState.stored = Number(row.result);
+      calculatorState.operator = null;
+      calculatorState.waitingNext = true;
+      calculatorState.error = false;
+      calculatorState.expression = '';
+      renderCalculator();
+      closeCalculatorHistory();
+    });
+  }
   document.addEventListener('keydown', (e) => {
     if (activePanel !== 'calculator') return;
     if (e.key >= '0' && e.key <= '9') {
@@ -1375,6 +1492,10 @@ function initCalculator() {
     }
     if (e.key === 'Escape') {
       e.preventDefault();
+      if (els.calculatorHistoryPanel && !els.calculatorHistoryPanel.classList.contains('hidden')) {
+        closeCalculatorHistory();
+        return;
+      }
       resetCalculator();
     }
   });
@@ -1551,6 +1672,9 @@ function syncAppPanelMode() {
   }
   if (els.calculatorCard) {
     els.calculatorCard.classList.toggle('hidden', !calculatorVisible);
+  }
+  if (!calculatorVisible) {
+    closeCalculatorHistory();
   }
 
   document.body.classList.toggle('settings-open', settingsVisible);
