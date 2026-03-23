@@ -1633,3 +1633,30 @@ body.salary-open #salaryCard {
 body.salary-open #salaryCard.hidden {
   display: none !important;
 }
+
+/* Загрузка / ошибка Supabase */
+.crm-boot-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 200000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(4px);
+}
+
+.crm-boot-overlay.hidden {
+  display: none !important;
+}
+
+.crm-boot-overlay__card {
+  max-width: 420px;
+  width: 100%;
+}
+
+.crm-boot-overlay__card p {
+  margin: 0 0 12px;
+  line-height: 1.45;
+}

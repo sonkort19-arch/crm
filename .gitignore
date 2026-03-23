@@ -5,6 +5,7 @@ node_modules/
 .env
 .env.*
 !.env.example
+crm-config.js
 
 # Логи и ОС
 *.log

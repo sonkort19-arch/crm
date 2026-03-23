@@ -20,6 +20,12 @@
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
+  <div id="crmBootOverlay" class="crm-boot-overlay hidden" aria-live="polite">
+    <div class="card crm-boot-overlay__card">
+      <p id="crmBootMessage">Загрузка данных…</p>
+      <button type="button" id="crmBootRetry" class="primary hidden">Обновить страницу</button>
+    </div>
+  </div>
   <button type="button" class="theme-fab ghost small-btn" id="themeToggle" aria-pressed="false" aria-label="Переключить тему оформления">
     <span class="theme-fab__icon" aria-hidden="true">🌙</span>
     <span class="theme-fab__text">Тёмная</span>
@@ -277,6 +283,7 @@
   </div>
 
   <script src="percent-logic.js"></script>
-  <script src="app.js"></script>
+  <script src="crm-config.js"></script>
+  <script type="module" src="app.js"></script>
 </body>
 </html>

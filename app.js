@@ -1,8 +1,8 @@
+import { initCrmCloud, schedulePersist, setStateGetter, isConfigured } from './crm-cloud.js';
+
 const STORAGE_KEYS = {
   auth: 'calc_auth_role',
-  percentages: 'calc_percentages_v2',
   theme: 'calc_theme_v1',
-  salary: 'calc_salary_v1',
 };
 
 /* SECURITY: логины и пароли в этом файле видны в браузере (DevTools). Для реальной защиты нужен сервер. */
@@ -96,19 +96,7 @@ function mergePercentagesFromParsed(parsed) {
   return result;
 }
 
-function loadPercentages() {
-  const saved = localStorage.getItem(STORAGE_KEYS.percentages);
-  if (!saved) return deepClone(DEFAULT_STRUCTURE);
-
-  try {
-    const parsed = JSON.parse(saved);
-    return mergePercentagesFromParsed(parsed);
-  } catch {
-    return deepClone(DEFAULT_STRUCTURE);
-  }
-}
-
-let PERCENTAGES = loadPercentages();
+let PERCENTAGES = deepClone(DEFAULT_STRUCTURE);
 
 function normalizeSalaryState(prevState) {
   const prevBalances =
@@ -145,27 +133,17 @@ function normalizeSalaryState(prevState) {
   return { balances, payoutLog, accrualLog };
 }
 
-function loadSalaryState() {
-  const saved = localStorage.getItem(STORAGE_KEYS.salary);
-  if (!saved) return normalizeSalaryState(null);
-  try {
-    return normalizeSalaryState(JSON.parse(saved));
-  } catch {
-    return normalizeSalaryState(null);
-  }
-}
-
 function saveSalaryState() {
-  try {
-    localStorage.setItem(STORAGE_KEYS.salary, JSON.stringify(SALARY));
-  } catch (e) {}
+  schedulePersist();
 }
 
-let SALARY = loadSalaryState();
+let SALARY = normalizeSalaryState(null);
 let currentRole = null;
 
 let payoutTarget = { serviceKey: null, name: null };
 let personHistoryTarget = { serviceKey: null, name: null };
+/** Открытое направление в модалке «Зарплата» (для синхронизации из облака). */
+let salaryDetailOpenKey = null;
 
 let settingsNavView = 'hub';
 let settingsDetailKey = null;
@@ -267,9 +245,7 @@ function initTheme() {
 }
 
 function savePercentages() {
-  try {
-    localStorage.setItem(STORAGE_KEYS.percentages, JSON.stringify(PERCENTAGES));
-  } catch (e) {}
+  schedulePersist();
 }
 
 function syncSalaryWithPercentages() {
@@ -340,6 +316,7 @@ function renderSalaryDetailBody(serviceKey) {
 
 function openSalaryDetailModal(serviceKey) {
   if (!PERCENTAGES[serviceKey] || !els.salaryDetailModal) return;
+  salaryDetailOpenKey = serviceKey;
   renderSalaryDetailBody(serviceKey);
   els.salaryDetailModal.classList.remove('hidden');
   els.salaryDetailModal.setAttribute('aria-hidden', 'false');
@@ -347,6 +324,7 @@ function openSalaryDetailModal(serviceKey) {
 
 function closeSalaryDetailModal() {
   if (!els.salaryDetailModal) return;
+  salaryDetailOpenKey = null;
   els.salaryDetailModal.classList.add('hidden');
   els.salaryDetailModal.setAttribute('aria-hidden', 'true');
 }
@@ -699,6 +677,32 @@ function updateLoadWarningBanner() {
       )
       .join(' ') +
     ' Открой «Настройки» → выбери направление и подгони проценты так, чтобы в каждом блоке сумма была 100%.';
+}
+
+function refreshUIFromCloud() {
+  updateLoadWarningBanner();
+  renderSalaryModule();
+  if (currentRole === 'owner' && activePanel === 'settings') {
+    renderSettings();
+  }
+  if (els.salaryDetailModal && !els.salaryDetailModal.classList.contains('hidden') && salaryDetailOpenKey) {
+    renderSalaryDetailBody(salaryDetailOpenKey);
+  }
+  if (
+    els.personHistoryModal &&
+    !els.personHistoryModal.classList.contains('hidden') &&
+    personHistoryTarget.serviceKey &&
+    personHistoryTarget.name
+  ) {
+    renderPersonHistoryBody();
+  }
+  const hasInput =
+    toNumber(els.mobileAngel.value) ||
+    toNumber(els.nova.value) ||
+    toNumber(els.tlabs.value);
+  if (activePanel === 'distribution' && hasInput) {
+    calculate({ accrueSalary: false });
+  }
 }
 
 function getPersonKeys() {
@@ -1455,6 +1459,71 @@ function initMobileNav() {
   syncMobileNavChrome();
 }
 
-initTheme();
-initMobileNav();
-boot();
+function getBootEls() {
+  return {
+    overlay: document.getElementById('crmBootOverlay'),
+    message: document.getElementById('crmBootMessage'),
+    retry: document.getElementById('crmBootRetry'),
+  };
+}
+
+function showBootOverlay(msg, showRetry) {
+  const { overlay, message, retry } = getBootEls();
+  if (message) message.textContent = msg;
+  if (retry) {
+    retry.classList.toggle('hidden', !showRetry);
+    retry.onclick = showRetry
+      ? () => {
+          location.reload();
+        }
+      : null;
+  }
+  if (overlay) overlay.classList.remove('hidden');
+}
+
+function hideBootOverlay() {
+  const { overlay } = getBootEls();
+  if (overlay) overlay.classList.add('hidden');
+}
+
+async function startup() {
+  setStateGetter(() => ({ percentages: PERCENTAGES, salary: SALARY }));
+  window.__crmCloudPersistError = () => {
+    if (els.status) {
+      els.status.textContent = 'Не удалось сохранить в облако. Проверьте сеть.';
+      els.status.style.color = 'var(--danger)';
+    }
+  };
+
+  initTheme();
+  initMobileNav();
+
+  if (!isConfigured()) {
+    showBootOverlay(
+      'Нет настроек Supabase. Создайте crm-config.js из crm-config.example.js и укажите supabaseUrl и supabaseAnonKey (см. README).',
+      false
+    );
+    return;
+  }
+
+  showBootOverlay('Загрузка данных…', false);
+
+  const res = await initCrmCloud({
+    onRow: (row) => {
+      if (!row) return;
+      PERCENTAGES = mergePercentagesFromParsed(row.percentages);
+      SALARY = normalizeSalaryState(row.salary);
+      refreshUIFromCloud();
+    },
+  });
+
+  if (!res.ok) {
+    showBootOverlay(`Ошибка загрузки из Supabase: ${res.error || 'неизвестно'}`, true);
+    return;
+  }
+
+  hideBootOverlay();
+  boot();
+}
+
+startup();
