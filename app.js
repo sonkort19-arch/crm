@@ -2281,14 +2281,14 @@ function syncMobileNavChrome() {
   if (!t) return;
   if (!MOBILE_NAV_MQ.matches) {
     document.body.classList.remove('mobile-nav-expanded');
+    t.removeAttribute('aria-hidden');
     return;
   }
-  const expanded = document.body.classList.contains('mobile-nav-expanded');
-  t.setAttribute('aria-expanded', expanded ? 'true' : 'false');
-  t.setAttribute(
-    'aria-label',
-    expanded ? 'Свернуть боковое меню' : 'Показать полное меню разделов'
-  );
+  /* ≤639px: нижний tab bar, режим «раскрытого» бокового меню не используется */
+  document.body.classList.remove('mobile-nav-expanded');
+  t.setAttribute('aria-expanded', 'false');
+  t.setAttribute('aria-hidden', 'true');
+  t.setAttribute('aria-label', 'Меню разделов');
 }
 
 function initMobileNav() {
