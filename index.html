@@ -58,12 +58,34 @@
       </svg>
     </button>
     <div class="wrap app-shell">
-      <aside class="app-sidebar" aria-label="Разделы приложения">
-        <nav class="app-nav">
-          <button class="ghost small-btn app-nav__btn" id="distributionBtn" type="button">Распределение</button>
-          <button class="ghost small-btn app-nav__btn" id="salaryBtn" type="button">Зарплата</button>
-          <button class="ghost small-btn app-nav__btn" id="settingsBtn" type="button">Настройки</button>
-          <button class="ghost small-btn app-nav__btn" id="logoutBtn" type="button">Выйти</button>
+      <aside class="app-sidebar" id="appSidebar" aria-label="Разделы приложения">
+        <button
+          type="button"
+          class="ghost small-btn mobile-nav-toggle"
+          id="mobileNavToggle"
+          aria-expanded="false"
+          aria-controls="appSidebarNav"
+        >
+          <span class="mobile-nav-toggle__fab" aria-hidden="true">☰</span>
+          <span class="mobile-nav-toggle__full">Свернуть меню</span>
+        </button>
+        <nav class="app-nav" id="appSidebarNav">
+          <button class="ghost small-btn app-nav__btn" id="distributionBtn" type="button">
+            <span class="app-nav__glyph" aria-hidden="true">📊</span>
+            <span class="app-nav__label">Распределение</span>
+          </button>
+          <button class="ghost small-btn app-nav__btn" id="salaryBtn" type="button">
+            <span class="app-nav__glyph" aria-hidden="true">💰</span>
+            <span class="app-nav__label">Зарплата</span>
+          </button>
+          <button class="ghost small-btn app-nav__btn" id="settingsBtn" type="button">
+            <span class="app-nav__glyph" aria-hidden="true">⚙️</span>
+            <span class="app-nav__label">Настройки</span>
+          </button>
+          <button class="ghost small-btn app-nav__btn app-nav__btn--logout" id="logoutBtn" type="button">
+            <span class="app-nav__glyph" aria-hidden="true">🚪</span>
+            <span class="app-nav__label">Выйти</span>
+          </button>
         </nav>
       </aside>
 

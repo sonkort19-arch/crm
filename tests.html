@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Тесты percent-logic</title>
+  <style>
+    body { font-family: system-ui, sans-serif; padding: 16px; max-width: 640px; margin: 0 auto; }
+    .ok { color: #0f766e; }
+    .fail { color: #b91c1c; }
+    pre { background: #f3f6fb; padding: 12px; border-radius: 8px; overflow: auto; }
+  </style>
+</head>
+<body>
+  <h1>Тесты <code>percent-logic.js</code></h1>
+  <p>Открой этот файл в браузере из той же папки, что и <code>percent-logic.js</code>.</p>
+  <pre id="out"></pre>
+  <script src="percent-logic.js"></script>
+  <script>
+    const { sumPercents, isPercentTotalValid, wouldExceed100, calcService, PERCENT_TOTAL_TARGET } = window.PercentLogic;
+    const lines = [];
+    let passed = 0;
+    let failed = 0;
+
+    function assert(cond, msg) {
+      if (cond) {
+        passed++;
+        lines.push('OK  ' + msg);
+      } else {
+        failed++;
+        lines.push('FAIL ' + msg);
+      }
+    }
+
+    assert(sumPercents({ a: 50, b: 50 }) === 100, 'sumPercents равен 100');
+    assert(sumPercents({}) === 0, 'пустой объект даёт 0');
+    assert(isPercentTotalValid(100), '100 валидно');
+    assert(isPercentTotalValid(100 + 5e-7), 'погрешность float около 100');
+    assert(!isPercentTotalValid(99), '99 невалидно');
+    assert(wouldExceed100(99.5, 1), '99.5+1 превышает 100');
+    assert(!wouldExceed100(50, 50), '50+50 не превышает');
+
+    const cfg = { items: { A: 60, B: 40 } };
+    const r = calcService(1000, cfg);
+    assert(r.A === 600 && r.B === 400, 'calcService распределяет сумму');
+
+    assert(PERCENT_TOTAL_TARGET === 100, 'целевая сумма 100');
+
+    lines.push('');
+    lines.push('Итого: ' + passed + ' пройдено, ' + failed + ' провалено.');
+    document.getElementById('out').textContent = lines.join('\n');
+    document.getElementById('out').className = failed === 0 ? 'ok' : 'fail';
+  </script>
+</body>
+</html>

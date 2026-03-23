@@ -193,6 +193,7 @@ const els = {
   totals: document.getElementById('totals'),
   status: document.getElementById('status'),
   themeToggle: document.getElementById('themeToggle'),
+  mobileNavToggle: document.getElementById('mobileNavToggle'),
   settingsBackBtn: document.getElementById('settingsBackBtn'),
   settingsTitle: document.getElementById('settingsTitle'),
   settingsHint: document.getElementById('settingsHint'),
@@ -609,6 +610,8 @@ function setAuth(role) {
   updateRoleUI();
   updateLoadWarningBanner();
   renderSalaryModule();
+  document.body.classList.remove('mobile-nav-expanded');
+  syncMobileNavChrome();
 }
 
 function logout() {
@@ -617,6 +620,7 @@ function logout() {
   els.appScreen.classList.add('hidden');
   els.loginScreen.classList.remove('hidden');
   activePanel = 'distribution';
+  document.body.classList.remove('mobile-nav-expanded');
   syncAppPanelMode();
   if (els.loadWarning) {
     els.loadWarning.classList.add('hidden');
@@ -1120,5 +1124,39 @@ document.addEventListener('keydown', (e) => {
   }
 });
 
+const MOBILE_NAV_MQ = window.matchMedia('(max-width: 639px)');
+
+function syncMobileNavChrome() {
+  const t = els.mobileNavToggle;
+  if (!t) return;
+  if (!MOBILE_NAV_MQ.matches) {
+    document.body.classList.remove('mobile-nav-expanded');
+    return;
+  }
+  const expanded = document.body.classList.contains('mobile-nav-expanded');
+  t.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+  t.setAttribute(
+    'aria-label',
+    expanded ? 'Свернуть боковое меню' : 'Показать полное меню разделов'
+  );
+}
+
+function initMobileNav() {
+  if (!els.mobileNavToggle) return;
+  els.mobileNavToggle.addEventListener('click', () => {
+    if (!MOBILE_NAV_MQ.matches) return;
+    document.body.classList.toggle('mobile-nav-expanded');
+    syncMobileNavChrome();
+  });
+  const onMq = () => syncMobileNavChrome();
+  if (typeof MOBILE_NAV_MQ.addEventListener === 'function') {
+    MOBILE_NAV_MQ.addEventListener('change', onMq);
+  } else {
+    MOBILE_NAV_MQ.addListener(onMq);
+  }
+  syncMobileNavChrome();
+}
+
 initTheme();
+initMobileNav();
 boot();
