@@ -256,7 +256,16 @@ function setUiStatus(msg, kind = 'muted') {
 }
 
 /** Активная вкладка: всегда ровно одна видима на экране. */
-let activePanel = 'distribution'; // 'distribution' | 'salary' | 'settings'
+let activePanel = 'distribution'; // 'distribution' | 'salary' | 'settings' | 'calculator'
+
+const CALC_MAX_LEN = 14;
+const calculatorState = {
+  display: '0',
+  stored: null,
+  operator: null,
+  waitingNext: false,
+  error: false,
+};
 
 const els = {
   loginScreen: document.getElementById('loginScreen'),
@@ -269,9 +278,13 @@ const els = {
   distributionBtn: document.getElementById('distributionBtn'),
   salaryBtn: document.getElementById('salaryBtn'),
   settingsBtn: document.getElementById('settingsBtn'),
+  calculatorBtn: document.getElementById('calculatorBtn'),
   devToolsBtn: document.getElementById('devToolsBtn'),
   logoutBtn: document.getElementById('logoutBtn'),
   salaryCard: document.getElementById('salaryCard'),
+  calculatorCard: document.getElementById('calculatorCard'),
+  calculatorScreen: document.getElementById('calculatorScreen'),
+  calculatorGrid: document.getElementById('calculatorGrid'),
   settingsCard: document.getElementById('settingsCard'),
   settingsContent: document.getElementById('settingsContent'),
   saveSettingsBtn: document.getElementById('saveSettingsBtn'),
@@ -1139,6 +1152,234 @@ function clearAll() {
   els.mobileAngel.focus();
 }
 
+function normalizeCalcText(str) {
+  if (!Number.isFinite(Number(str))) return '0';
+  const n = Number(str);
+  if (Object.is(n, -0)) return '0';
+  const text = String(n);
+  if (text.length <= CALC_MAX_LEN) return text;
+  return n.toPrecision(Math.max(6, CALC_MAX_LEN - 6));
+}
+
+function renderCalculator() {
+  if (!els.calculatorScreen) return;
+  const text = calculatorState.display || '0';
+  els.calculatorScreen.textContent = text;
+}
+
+function resetCalculator() {
+  calculatorState.display = '0';
+  calculatorState.stored = null;
+  calculatorState.operator = null;
+  calculatorState.waitingNext = false;
+  calculatorState.error = false;
+  renderCalculator();
+}
+
+function applyCalculatorOperation(left, right, operator) {
+  if (operator === 'add') return left + right;
+  if (operator === 'subtract') return left - right;
+  if (operator === 'multiply') return left * right;
+  if (operator === 'divide') {
+    if (right === 0) return null;
+    return left / right;
+  }
+  return right;
+}
+
+function inputCalcDigit(digit) {
+  if (calculatorState.error) resetCalculator();
+  if (calculatorState.waitingNext) {
+    calculatorState.display = digit;
+    calculatorState.waitingNext = false;
+    renderCalculator();
+    return;
+  }
+  if (calculatorState.display === '0') {
+    calculatorState.display = digit;
+  } else if (calculatorState.display.length < CALC_MAX_LEN) {
+    calculatorState.display += digit;
+  }
+  renderCalculator();
+}
+
+function inputCalcDot() {
+  if (calculatorState.error) resetCalculator();
+  if (calculatorState.waitingNext) {
+    calculatorState.display = '0.';
+    calculatorState.waitingNext = false;
+    renderCalculator();
+    return;
+  }
+  if (!calculatorState.display.includes('.')) {
+    calculatorState.display += '.';
+    renderCalculator();
+  }
+}
+
+function toggleCalcSign() {
+  if (calculatorState.error) return;
+  if (calculatorState.display === '0') return;
+  calculatorState.display = calculatorState.display.startsWith('-')
+    ? calculatorState.display.slice(1)
+    : `-${calculatorState.display}`;
+  renderCalculator();
+}
+
+function calcPercent() {
+  if (calculatorState.error) return;
+  const current = Number(calculatorState.display);
+  if (!Number.isFinite(current)) return;
+  calculatorState.display = normalizeCalcText(String(current / 100));
+  calculatorState.waitingNext = false;
+  renderCalculator();
+}
+
+function computePendingCalc() {
+  const current = Number(calculatorState.display);
+  if (!Number.isFinite(current)) return;
+  if (calculatorState.stored == null || !calculatorState.operator) {
+    calculatorState.stored = current;
+    return;
+  }
+  const out = applyCalculatorOperation(calculatorState.stored, current, calculatorState.operator);
+  if (out == null || !Number.isFinite(out)) {
+    calculatorState.display = 'Ошибка';
+    calculatorState.error = true;
+    calculatorState.stored = null;
+    calculatorState.operator = null;
+    calculatorState.waitingNext = true;
+    renderCalculator();
+    return;
+  }
+  calculatorState.stored = out;
+  calculatorState.display = normalizeCalcText(String(out));
+  renderCalculator();
+}
+
+function chooseCalcOperator(operator) {
+  if (calculatorState.error) return;
+  computePendingCalc();
+  if (calculatorState.error) return;
+  calculatorState.operator = operator;
+  calculatorState.waitingNext = true;
+}
+
+function equalCalc() {
+  if (calculatorState.error) return;
+  computePendingCalc();
+  if (calculatorState.error) return;
+  calculatorState.operator = null;
+  calculatorState.waitingNext = true;
+}
+
+function calcBackspace() {
+  if (activePanel !== 'calculator') return;
+  if (calculatorState.error) {
+    resetCalculator();
+    return;
+  }
+  if (calculatorState.waitingNext) return;
+  const cur = calculatorState.display;
+  if (cur.length <= 1 || (cur.length === 2 && cur.startsWith('-'))) {
+    calculatorState.display = '0';
+  } else {
+    calculatorState.display = cur.slice(0, -1);
+  }
+  renderCalculator();
+}
+
+function handleCalculatorAction(action) {
+  if (action === 'clear') {
+    resetCalculator();
+    return;
+  }
+  if (action === 'dot') {
+    inputCalcDot();
+    return;
+  }
+  if (action === 'sign') {
+    toggleCalcSign();
+    return;
+  }
+  if (action === 'percent') {
+    calcPercent();
+    return;
+  }
+  if (action === 'equals') {
+    equalCalc();
+  }
+}
+
+function initCalculator() {
+  resetCalculator();
+  if (els.calculatorGrid) {
+    els.calculatorGrid.addEventListener('click', (e) => {
+      const digitBtn = e.target.closest('[data-calc-digit]');
+      if (digitBtn) {
+        inputCalcDigit(String(digitBtn.getAttribute('data-calc-digit') || '0'));
+        return;
+      }
+      const opBtn = e.target.closest('[data-calc-op]');
+      if (opBtn) {
+        chooseCalcOperator(String(opBtn.getAttribute('data-calc-op') || ''));
+        return;
+      }
+      const actionBtn = e.target.closest('[data-calc-action]');
+      if (actionBtn) {
+        handleCalculatorAction(String(actionBtn.getAttribute('data-calc-action') || ''));
+      }
+    });
+  }
+  document.addEventListener('keydown', (e) => {
+    if (activePanel !== 'calculator') return;
+    if (e.key >= '0' && e.key <= '9') {
+      e.preventDefault();
+      inputCalcDigit(e.key);
+      return;
+    }
+    if (e.key === '.') {
+      e.preventDefault();
+      inputCalcDot();
+      return;
+    }
+    if (e.key === '+' || e.key === '-') {
+      e.preventDefault();
+      chooseCalcOperator(e.key === '+' ? 'add' : 'subtract');
+      return;
+    }
+    if (e.key === '*' || e.key.toLowerCase() === 'x') {
+      e.preventDefault();
+      chooseCalcOperator('multiply');
+      return;
+    }
+    if (e.key === '/') {
+      e.preventDefault();
+      chooseCalcOperator('divide');
+      return;
+    }
+    if (e.key === 'Enter' || e.key === '=') {
+      e.preventDefault();
+      equalCalc();
+      return;
+    }
+    if (e.key === '%') {
+      e.preventDefault();
+      calcPercent();
+      return;
+    }
+    if (e.key === 'Backspace') {
+      e.preventDefault();
+      calcBackspace();
+      return;
+    }
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      resetCalculator();
+    }
+  });
+}
+
 function login() {
   const loginVal = els.loginInput.value.trim();
   const password = els.passwordInput.value.trim();
@@ -1300,6 +1541,7 @@ function syncAppPanelMode() {
   const settingsVisible = activePanel === 'settings' && isOwner;
   const salaryVisible = activePanel === 'salary';
   const distributionVisible = activePanel === 'distribution';
+  const calculatorVisible = activePanel === 'calculator';
 
   if (els.settingsCard) {
     els.settingsCard.classList.toggle('hidden', !settingsVisible);
@@ -1307,10 +1549,14 @@ function syncAppPanelMode() {
   if (els.salaryCard) {
     els.salaryCard.classList.toggle('hidden', !salaryVisible);
   }
+  if (els.calculatorCard) {
+    els.calculatorCard.classList.toggle('hidden', !calculatorVisible);
+  }
 
   document.body.classList.toggle('settings-open', settingsVisible);
   document.body.classList.toggle('salary-open', salaryVisible);
   document.body.classList.toggle('distribution-open', distributionVisible);
+  document.body.classList.toggle('calculator-open', calculatorVisible);
 
   if (els.distributionBtn) {
     if (distributionVisible) els.distributionBtn.setAttribute('aria-current', 'page');
@@ -1323,6 +1569,10 @@ function syncAppPanelMode() {
   if (els.settingsBtn) {
     if (settingsVisible) els.settingsBtn.setAttribute('aria-current', 'page');
     else els.settingsBtn.removeAttribute('aria-current');
+  }
+  if (els.calculatorBtn) {
+    if (calculatorVisible) els.calculatorBtn.setAttribute('aria-current', 'page');
+    else els.calculatorBtn.removeAttribute('aria-current');
   }
 }
 
@@ -1348,6 +1598,14 @@ function showSettings() {
   openSettingsHub();
   syncAppPanelMode();
   renderSettings();
+}
+
+function showCalculator() {
+  if (!els.calculatorCard) return;
+  if (activePanel === 'calculator') return;
+  activePanel = 'calculator';
+  syncAppPanelMode();
+  renderCalculator();
 }
 
 function settingsGoBack() {
@@ -1687,6 +1945,7 @@ els.loginInput.addEventListener('keydown', (e) => {
 if (els.distributionBtn) els.distributionBtn.addEventListener('click', showDistribution);
 if (els.salaryBtn) els.salaryBtn.addEventListener('click', showSalary);
 if (els.settingsBtn) els.settingsBtn.addEventListener('click', showSettings);
+if (els.calculatorBtn) els.calculatorBtn.addEventListener('click', showCalculator);
 if (els.devToolsBtn) els.devToolsBtn.addEventListener('click', openDevToolsModal);
 if (els.settingsBackBtn) els.settingsBackBtn.addEventListener('click', settingsGoBack);
 if (els.saveSettingsBtn) els.saveSettingsBtn.addEventListener('click', saveSettings);
@@ -1977,6 +2236,7 @@ async function startup() {
 
   initTheme();
   initMobileNav();
+  initCalculator();
 
   if (!isConfigured()) {
     showBootOverlay(

@@ -101,6 +101,10 @@
             <span class="app-nav__glyph" aria-hidden="true">⚙️</span>
             <span class="app-nav__label">Настройки</span>
           </button>
+          <button class="ghost small-btn app-nav__btn" id="calculatorBtn" type="button">
+            <span class="app-nav__glyph" aria-hidden="true">🧮</span>
+            <span class="app-nav__label">Калькулятор</span>
+          </button>
           <button class="ghost small-btn app-nav__btn app-nav__btn--dev hidden" id="devToolsBtn" type="button">
             <span class="app-nav__glyph" aria-hidden="true">🧪</span>
             <span class="app-nav__label">Для разработчиков</span>
@@ -143,6 +147,35 @@
         <p class="sub salary-card-hint">Балансы по направлениям. Нажми направление — список строк и выплаты; нажми имя — история по периоду. Начисление — при «Рассчитать».</p>
         <div class="salary-card-scroll">
           <div class="salary-directions" id="salaryDirections"></div>
+        </div>
+      </div>
+
+      <div id="calculatorCard" class="card calculator-card hidden">
+        <div class="calculator-screen" id="calculatorScreen" aria-live="polite">0</div>
+        <div class="calculator-grid" id="calculatorGrid">
+          <button type="button" class="calculator-btn calculator-btn--func" data-calc-action="clear">C</button>
+          <button type="button" class="calculator-btn calculator-btn--func" data-calc-action="sign">±</button>
+          <button type="button" class="calculator-btn calculator-btn--func" data-calc-action="percent">%</button>
+          <button type="button" class="calculator-btn calculator-btn--op" data-calc-op="divide">÷</button>
+
+          <button type="button" class="calculator-btn" data-calc-digit="7">7</button>
+          <button type="button" class="calculator-btn" data-calc-digit="8">8</button>
+          <button type="button" class="calculator-btn" data-calc-digit="9">9</button>
+          <button type="button" class="calculator-btn calculator-btn--op" data-calc-op="multiply">×</button>
+
+          <button type="button" class="calculator-btn" data-calc-digit="4">4</button>
+          <button type="button" class="calculator-btn" data-calc-digit="5">5</button>
+          <button type="button" class="calculator-btn" data-calc-digit="6">6</button>
+          <button type="button" class="calculator-btn calculator-btn--op" data-calc-op="subtract">−</button>
+
+          <button type="button" class="calculator-btn" data-calc-digit="1">1</button>
+          <button type="button" class="calculator-btn" data-calc-digit="2">2</button>
+          <button type="button" class="calculator-btn" data-calc-digit="3">3</button>
+          <button type="button" class="calculator-btn calculator-btn--op" data-calc-op="add">+</button>
+
+          <button type="button" class="calculator-btn calculator-btn--zero" data-calc-digit="0">0</button>
+          <button type="button" class="calculator-btn" data-calc-action="dot">.</button>
+          <button type="button" class="calculator-btn calculator-btn--op" data-calc-action="equals">=</button>
         </div>
       </div>
 

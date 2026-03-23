@@ -316,7 +316,8 @@ body {
 
 body.distribution-open #distributionBtn.app-nav__btn,
 body.salary-open #salaryBtn.app-nav__btn,
-body.settings-open #settingsBtn.app-nav__btn {
+body.settings-open #settingsBtn.app-nav__btn,
+body.calculator-open #calculatorBtn.app-nav__btn {
   background: var(--nav-active-bg);
   color: var(--nav-active-text);
   border-color: var(--nav-active-border);
@@ -326,7 +327,8 @@ body.settings-open #settingsBtn.app-nav__btn {
 
 body.distribution-open #distributionBtn.app-nav__btn:hover,
 body.salary-open #salaryBtn.app-nav__btn:hover,
-body.settings-open #settingsBtn.app-nav__btn:hover {
+body.settings-open #settingsBtn.app-nav__btn:hover,
+body.calculator-open #calculatorBtn.app-nav__btn:hover {
   background: var(--nav-active-bg);
   color: var(--nav-active-text);
   border-color: var(--nav-active-border);
@@ -335,7 +337,8 @@ body.settings-open #settingsBtn.app-nav__btn:hover {
 
 body.distribution-open #distributionBtn.app-nav__btn:focus-visible,
 body.salary-open #salaryBtn.app-nav__btn:focus-visible,
-body.settings-open #settingsBtn.app-nav__btn:focus-visible {
+body.settings-open #settingsBtn.app-nav__btn:focus-visible,
+body.calculator-open #calculatorBtn.app-nav__btn:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
@@ -462,6 +465,72 @@ body.settings-open #settingsBtn.app-nav__btn:focus-visible {
   display: grid;
   gap: 8px;
   padding-top: calc(var(--app-brand-stack) - 8px);
+}
+
+.calculator-card {
+  max-width: 430px;
+  margin: 0 auto;
+  padding: 12px;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.calculator-screen {
+  min-height: 84px;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: color-mix(in srgb, var(--surface-2) 70%, var(--card));
+  color: var(--text);
+  display: flex;
+  align-items: flex-end;
+  justify-content: flex-end;
+  padding: 12px 14px;
+  font-size: clamp(1.7rem, 7vw, 2.4rem);
+  font-weight: 700;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.calculator-grid {
+  margin-top: 10px;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.calculator-btn {
+  min-height: clamp(52px, 11vw, 66px);
+  border-radius: 16px;
+  border: 1px solid var(--line);
+  background: var(--card);
+  color: var(--text);
+  font-size: clamp(1rem, 3.8vw, 1.3rem);
+  font-weight: 700;
+}
+
+.calculator-btn:hover {
+  background: var(--surface-2);
+}
+
+.calculator-btn--func {
+  background: color-mix(in srgb, var(--surface-2) 85%, var(--card));
+  color: var(--muted);
+}
+
+.calculator-btn--op {
+  background: color-mix(in srgb, var(--accent) 88%, #ffffff 12%);
+  border-color: color-mix(in srgb, var(--accent) 60%, var(--line));
+  color: #fff;
+}
+
+.calculator-btn--op:hover {
+  filter: brightness(1.05);
+}
+
+.calculator-btn--zero {
+  grid-column: span 2;
 }
 
 .card {
@@ -1784,7 +1853,8 @@ button:active:not(:disabled) {
   }
 
   body.settings-open,
-  body.salary-open {
+  body.salary-open,
+  body.calculator-open {
     padding-bottom: calc(20px + env(safe-area-inset-bottom));
   }
 
@@ -1798,13 +1868,18 @@ button:active:not(:disabled) {
 }
 
 body.settings-open,
-body.salary-open {
+body.salary-open,
+body.calculator-open {
   padding-bottom: calc(16px + env(safe-area-inset-bottom));
 }
 
 body:not(.distribution-open) #calcWorkspace,
 body.settings-open #calcWorkspace,
 body.salary-open #calcWorkspace {
+  display: none !important;
+}
+
+body:not(.calculator-open) #calculatorCard {
   display: none !important;
 }
 
@@ -1838,6 +1913,17 @@ body.salary-open #salaryCard {
 
 body.salary-open #salaryCard.hidden {
   display: none !important;
+}
+
+@media (max-width: 520px) {
+  .calculator-card {
+    max-width: 100%;
+    padding: 10px;
+  }
+
+  .calculator-grid {
+    gap: 7px;
+  }
 }
 
 /* Загрузка / ошибка Supabase */
