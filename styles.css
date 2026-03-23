@@ -1,7 +1,4 @@
 :root {
-  /* iOS / mobile keyboard: обновляется из inline-скрипта в index.html (visualViewport) */
-  --vv-height: 100dvh;
-  --vv-offset-top: 0px;
   color-scheme: light;
   --bg-top: #f8fafc;
   --bg-bottom: #f1f5f9;
@@ -123,13 +120,6 @@ body {
   transition: background var(--transition), color var(--transition);
 }
 
-@media (max-width: 768px) {
-  body {
-    /* fixed-фон на iOS даёт артефакты при клавиатуре и скролле */
-    background-attachment: scroll;
-  }
-}
-
 .theme-fab {
   position: fixed;
   top: calc(10px + env(safe-area-inset-top));
@@ -249,8 +239,12 @@ body {
   width: var(--app-sidebar-w);
   z-index: 40;
   max-height: calc(
-    var(--vv-height) - var(--app-brand-stack) - var(--app-role-fab-size) - var(--app-role-fab-gap) - 24px -
-      env(safe-area-inset-top) - env(safe-area-inset-bottom)
+    100dvh - var(--app-brand-stack) - var(--app-role-fab-size) - var(--app-role-fab-gap) - 24px - env(safe-area-inset-top) -
+      env(safe-area-inset-bottom)
+  );
+  max-height: calc(
+    100vh - var(--app-brand-stack) - var(--app-role-fab-size) - var(--app-role-fab-gap) - 24px - env(safe-area-inset-top) -
+      env(safe-area-inset-bottom)
   );
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
@@ -578,7 +572,7 @@ body.calculator-open #calculatorBtn.app-nav__btn:focus-visible {
   left: 10px;
   right: 10px;
   bottom: 10px;
-  max-height: min(calc(var(--vv-height) * 0.58), 460px);
+  max-height: min(58vh, 460px);
   background: color-mix(in srgb, var(--card) 88%, transparent);
   border: 1px solid var(--line);
   border-radius: 20px;
@@ -1299,19 +1293,13 @@ button:active:not(:disabled) {
 
 .modal {
   position: fixed;
-  left: 0;
-  right: 0;
-  top: var(--vv-offset-top);
-  width: 100%;
-  height: var(--vv-height);
-  box-sizing: border-box;
+  inset: 0;
   z-index: 250;
   display: flex;
   align-items: flex-end;
   justify-content: center;
   padding: 12px;
   padding-bottom: calc(12px + env(safe-area-inset-bottom));
-  overflow: hidden;
 }
 
 #payoutModal.modal {
@@ -1442,7 +1430,8 @@ button:active:not(:disabled) {
 .salary-history-content {
   flex: 1;
   min-height: 140px;
-  max-height: min(calc(var(--vv-height) * 0.44), 380px);
+  max-height: min(44dvh, 380px);
+  max-height: min(44vh, 380px);
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
   padding: 4px 2px 8px 0;
@@ -1851,7 +1840,8 @@ button:active:not(:disabled) {
   z-index: 1;
   width: 100%;
   max-width: 520px;
-  max-height: min(calc(var(--vv-height) * 0.88), 640px);
+  max-height: min(85dvh, 640px);
+  max-height: min(85vh, 640px);
   overflow: hidden;
   display: flex;
   flex-direction: column;
@@ -2003,7 +1993,8 @@ body:not(.calculator-open) #calculatorCard {
 }
 
 body.settings-open #settingsCard {
-  max-height: calc(var(--vv-height) - 100px);
+  max-height: calc(100dvh - 100px);
+  max-height: calc(100vh - 100px);
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -2022,7 +2013,8 @@ body.settings-open #settingsContent {
 }
 
 body.salary-open #salaryCard {
-  max-height: calc(var(--vv-height) - 100px);
+  max-height: calc(100dvh - 100px);
+  max-height: calc(100vh - 100px);
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -2064,12 +2056,7 @@ body.salary-open #salaryCard.hidden {
   body.calculator-open #calculatorCard {
     display: flex !important;
     position: fixed;
-    left: 0;
-    right: 0;
-    top: var(--vv-offset-top);
-    width: 100%;
-    height: var(--vv-height);
-    box-sizing: border-box;
+    inset: 0;
     z-index: 120;
     margin: 0;
     max-width: none;
@@ -2121,12 +2108,7 @@ body.salary-open #salaryCard.hidden {
 /* Загрузка / ошибка Supabase */
 .crm-boot-overlay {
   position: fixed;
-  left: 0;
-  right: 0;
-  top: var(--vv-offset-top);
-  width: 100%;
-  height: var(--vv-height);
-  box-sizing: border-box;
+  inset: 0;
   z-index: 200000;
   display: flex;
   align-items: center;
