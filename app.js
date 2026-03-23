@@ -245,6 +245,7 @@ const personHistoryFilters = {
 let settingsNavView = 'hub';
 let settingsDetailKey = null;
 let settingsDetailDirty = false;
+let devToolsActionTarget = null;
 
 function setUiStatus(msg, kind = 'muted') {
   if (!els.status) return;
@@ -268,6 +269,7 @@ const els = {
   distributionBtn: document.getElementById('distributionBtn'),
   salaryBtn: document.getElementById('salaryBtn'),
   settingsBtn: document.getElementById('settingsBtn'),
+  devToolsBtn: document.getElementById('devToolsBtn'),
   logoutBtn: document.getElementById('logoutBtn'),
   salaryCard: document.getElementById('salaryCard'),
   settingsCard: document.getElementById('settingsCard'),
@@ -321,6 +323,11 @@ const els = {
   payoutDeleteReason: document.getElementById('payoutDeleteReason'),
   payoutDeleteStatus: document.getElementById('payoutDeleteStatus'),
   payoutDeleteConfirmBtn: document.getElementById('payoutDeleteConfirmBtn'),
+  devToolsModal: document.getElementById('devToolsModal'),
+  devToolsConfirmInput: document.getElementById('devToolsConfirmInput'),
+  devToolsStatus: document.getElementById('devToolsStatus'),
+  devClearAccrualsBtn: document.getElementById('devClearAccrualsBtn'),
+  devResetCategoriesBtn: document.getElementById('devResetCategoriesBtn'),
 };
 
 function applyTheme(theme) {
@@ -1193,13 +1200,89 @@ function updateRoleUI() {
   }
   if (currentRole === 'owner') {
     els.settingsBtn.classList.remove('hidden');
+    if (els.devToolsBtn) els.devToolsBtn.classList.remove('hidden');
   } else {
     els.settingsBtn.classList.add('hidden');
+    if (els.devToolsBtn) els.devToolsBtn.classList.add('hidden');
     if (activePanel === 'settings') {
       activePanel = 'distribution';
     }
   }
   syncAppPanelMode();
+}
+
+function setDevToolsStatus(msg, kind = 'muted') {
+  if (!els.devToolsStatus) return;
+  els.devToolsStatus.textContent = msg;
+  const colorVar =
+    kind === 'ok' ? 'var(--ok)' : kind === 'danger' ? 'var(--danger)' : 'var(--muted)';
+  els.devToolsStatus.style.color = colorVar;
+}
+
+function clearAccrualsData() {
+  const nextState = {
+    balances: {},
+    payoutLog: Array.isArray(SALARY.payoutLog) ? SALARY.payoutLog : [],
+    accrualLog: [],
+    payoutDeletionLog: Array.isArray(SALARY.payoutDeletionLog) ? SALARY.payoutDeletionLog : [],
+    snapshots: Array.isArray(SALARY.snapshots) ? SALARY.snapshots : [],
+    auditLog: Array.isArray(SALARY.auditLog) ? SALARY.auditLog : [],
+  };
+  SALARY = normalizeSalaryState(nextState);
+}
+
+function resetCategoriesAndLinkedData() {
+  PERCENTAGES = deepClone(DEFAULT_STRUCTURE);
+  SALARY = normalizeSalaryState(null);
+  settingsNavView = 'hub';
+  settingsDetailKey = null;
+  settingsDetailDirty = false;
+}
+
+function closeDevToolsModal() {
+  if (!els.devToolsModal) return;
+  els.devToolsModal.classList.add('hidden');
+  els.devToolsModal.setAttribute('aria-hidden', 'true');
+  devToolsActionTarget = null;
+  if (els.devToolsConfirmInput) els.devToolsConfirmInput.value = '';
+  setDevToolsStatus('', 'muted');
+}
+
+function openDevToolsModal() {
+  if (currentRole !== 'owner' || !els.devToolsModal) return;
+  els.devToolsModal.classList.remove('hidden');
+  els.devToolsModal.setAttribute('aria-hidden', 'false');
+  devToolsActionTarget = null;
+  if (els.devToolsConfirmInput) {
+    els.devToolsConfirmInput.value = '';
+    els.devToolsConfirmInput.focus();
+  }
+  setDevToolsStatus('', 'muted');
+}
+
+function runDevToolsAction(action) {
+  if (currentRole !== 'owner') return;
+  const phrase = String((els.devToolsConfirmInput && els.devToolsConfirmInput.value) || '').trim();
+  if (phrase !== 'ПОДТВЕРЖДАЮ') {
+    setDevToolsStatus('Введите фразу ПОДТВЕРЖДАЮ.', 'danger');
+    return;
+  }
+  devToolsActionTarget = action;
+  if (action === 'clear_accruals') {
+    clearAccrualsData();
+    saveSalaryState();
+  } else if (action === 'reset_categories') {
+    resetCategoriesAndLinkedData();
+    savePercentages();
+    saveSalaryState();
+  } else {
+    return;
+  }
+  calculate({ accrueSalary: false });
+  renderSalaryModule();
+  renderSettings();
+  updateLoadWarningBanner();
+  setDevToolsStatus('Готово', 'ok');
 }
 
 function openSettingsHub() {
@@ -1604,6 +1687,7 @@ els.loginInput.addEventListener('keydown', (e) => {
 if (els.distributionBtn) els.distributionBtn.addEventListener('click', showDistribution);
 if (els.salaryBtn) els.salaryBtn.addEventListener('click', showSalary);
 if (els.settingsBtn) els.settingsBtn.addEventListener('click', showSettings);
+if (els.devToolsBtn) els.devToolsBtn.addEventListener('click', openDevToolsModal);
 if (els.settingsBackBtn) els.settingsBackBtn.addEventListener('click', settingsGoBack);
 if (els.saveSettingsBtn) els.saveSettingsBtn.addEventListener('click', saveSettings);
 els.settingsContent.addEventListener('click', handleAddCategoryClick);
@@ -1763,6 +1847,12 @@ if (els.payoutConfirmBtn) {
 if (els.payoutDeleteConfirmBtn) {
   els.payoutDeleteConfirmBtn.addEventListener('click', confirmPayoutDelete);
 }
+if (els.devClearAccrualsBtn) {
+  els.devClearAccrualsBtn.addEventListener('click', () => runDevToolsAction('clear_accruals'));
+}
+if (els.devResetCategoriesBtn) {
+  els.devResetCategoriesBtn.addEventListener('click', () => runDevToolsAction('reset_categories'));
+}
 
 if (els.payoutAmountInput) {
   els.payoutAmountInput.addEventListener('keydown', (e) => {
@@ -1775,6 +1865,7 @@ els.appScreen.addEventListener('click', (e) => {
   if (e.target.closest('[data-modal-close="payoutDelete"]')) closePayoutDeleteModal();
   if (e.target.closest('[data-modal-close="salaryDetail"]')) closeSalaryDetailModal();
   if (e.target.closest('[data-modal-close="personHistory"]')) closePersonHistoryModal();
+  if (e.target.closest('[data-modal-close="devTools"]')) closeDevToolsModal();
 });
 
 document.addEventListener('keydown', (e) => {
@@ -1793,6 +1884,10 @@ document.addEventListener('keydown', (e) => {
   }
   if (els.salaryDetailModal && !els.salaryDetailModal.classList.contains('hidden')) {
     closeSalaryDetailModal();
+    return;
+  }
+  if (els.devToolsModal && !els.devToolsModal.classList.contains('hidden')) {
+    closeDevToolsModal();
   }
 });
 

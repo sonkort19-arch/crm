@@ -101,6 +101,10 @@
             <span class="app-nav__glyph" aria-hidden="true">⚙️</span>
             <span class="app-nav__label">Настройки</span>
           </button>
+          <button class="ghost small-btn app-nav__btn app-nav__btn--dev hidden" id="devToolsBtn" type="button">
+            <span class="app-nav__glyph" aria-hidden="true">🧪</span>
+            <span class="app-nav__label">Для разработчиков</span>
+          </button>
           <button class="ghost small-btn app-nav__btn app-nav__btn--logout" id="logoutBtn" type="button">
             <span class="app-nav__glyph" aria-hidden="true">🚪</span>
             <span class="app-nav__label">Выйти</span>
@@ -325,6 +329,29 @@
           <div class="modal__actions">
             <button type="button" class="ghost" data-modal-close="payoutDelete">Отмена</button>
             <button type="button" class="danger" id="payoutDeleteConfirmBtn">Удалить выплату</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="devToolsModal" class="modal hidden" aria-hidden="true">
+      <div class="modal__backdrop" data-modal-close="devTools" tabindex="-1"></div>
+      <div class="modal__panel modal__panel--sm" role="dialog" aria-modal="true" aria-labelledby="devToolsTitle">
+        <div class="modal__head">
+          <h3 id="devToolsTitle" class="modal__title">Для разработчиков</h3>
+          <button type="button" class="ghost small-btn modal__close" data-modal-close="devTools" aria-label="Закрыть">×</button>
+        </div>
+        <div class="modal__body">
+          <p class="muted">Ты точно уверен? Для подтверждения введи <strong>ПОДТВЕРЖДАЮ</strong>.</p>
+          <div class="input-block input-block--modal">
+            <label for="devToolsConfirmInput">Подтверждение</label>
+            <input id="devToolsConfirmInput" type="text" placeholder="ПОДТВЕРЖДАЮ" />
+          </div>
+          <p class="status" id="devToolsStatus" aria-live="polite"></p>
+          <div class="modal__actions modal__actions--stack">
+            <button type="button" class="danger" id="devClearAccrualsBtn">Очистить начисления</button>
+            <button type="button" class="danger" id="devResetCategoriesBtn">Очистить категории</button>
+            <button type="button" class="ghost" data-modal-close="devTools">Отмена</button>
           </div>
         </div>
       </div>

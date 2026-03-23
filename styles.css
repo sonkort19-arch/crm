@@ -276,6 +276,10 @@ body {
   min-height: 34px;
 }
 
+.app-nav__btn--dev {
+  border-color: color-mix(in srgb, var(--accent) 24%, var(--line));
+}
+
 .app-nav__glyph {
   display: none;
   line-height: 1;
@@ -442,6 +446,10 @@ body.settings-open #settingsBtn.app-nav__btn:focus-visible {
 
   body:not(.mobile-nav-expanded) .app-nav__btn--logout {
     border-color: rgba(220, 38, 38, 0.45);
+  }
+
+  body:not(.mobile-nav-expanded) .app-nav__btn--dev {
+    border-color: color-mix(in srgb, var(--accent) 45%, transparent);
   }
 
   [data-theme='dark'] body:not(.mobile-nav-expanded) .app-nav__btn--logout {
@@ -1730,6 +1738,10 @@ button:active:not(:disabled) {
   grid-template-columns: 1fr 1fr;
   gap: 10px;
   margin-top: 14px;
+}
+
+.modal__actions--stack {
+  grid-template-columns: 1fr;
 }
 
 .modal__actions .primary,
