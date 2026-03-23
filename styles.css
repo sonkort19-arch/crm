@@ -123,42 +123,6 @@ body {
   transition: background var(--transition), color var(--transition);
 }
 
-.theme-fab {
-  position: fixed;
-  top: calc(10px + env(safe-area-inset-top));
-  right: calc(10px + env(safe-area-inset-right));
-  z-index: 100;
-  width: auto;
-  min-height: var(--control-height);
-  padding: 7px 11px;
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  border-radius: 999px;
-  box-shadow: var(--shadow-sm);
-  border: 1px solid var(--line);
-  background: var(--card);
-  color: var(--soft-text);
-  font-weight: 700;
-  font-size: var(--font-size-small);
-  transition: transform var(--transition), box-shadow var(--transition), background var(--transition),
-    border-color var(--transition);
-}
-
-.theme-fab:hover {
-  transform: translateY(-1px);
-  box-shadow: var(--shadow-lg);
-}
-
-.theme-fab:active {
-  transform: translateY(0);
-}
-
-.theme-fab__icon {
-  font-size: 1.1rem;
-  line-height: 1;
-}
-
 .wrap {
   width: 100%;
   max-width: 760px;
@@ -184,6 +148,65 @@ body {
   font-weight: 800;
   letter-spacing: -0.045em;
   line-height: 1.1;
+}
+
+.app-brand__toggle {
+  pointer-events: auto;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  border-radius: 12px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  -webkit-tap-highlight-color: transparent;
+  transition: opacity var(--transition), transform var(--transition);
+}
+
+.app-brand__toggle:hover {
+  opacity: 0.92;
+}
+
+.app-brand__toggle:active {
+  transform: scale(0.98);
+}
+
+.app-brand__toggle:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 4px;
+}
+
+.login-theme-btn {
+  position: fixed;
+  top: calc(10px + env(safe-area-inset-top));
+  left: max(12px, env(safe-area-inset-left));
+  z-index: 60;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  border-radius: 12px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  -webkit-tap-highlight-color: transparent;
+  transition: opacity var(--transition), transform var(--transition);
+}
+
+.login-theme-btn:hover {
+  opacity: 0.92;
+}
+
+.login-theme-btn:active {
+  transform: scale(0.98);
+}
+
+.login-theme-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 4px;
 }
 
 .app-brand__logo {
@@ -1980,13 +2003,6 @@ button:active:not(:disabled) {
     grid-template-columns: 1fr;
   }
 
-  .theme-fab__text {
-    display: none;
-  }
-
-  .theme-fab {
-    padding: 10px 12px;
-  }
 }
 
 @media (min-width: 700px) {
@@ -2078,8 +2094,7 @@ body.salary-open #salaryCard.hidden {
 
 @media (max-width: 700px) {
   body.calculator-open .app-brand,
-  body.calculator-open .app-role-fab,
-  body.calculator-open .theme-fab {
+  body.calculator-open .app-role-fab {
     display: none !important;
   }
 

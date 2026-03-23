@@ -28,11 +28,24 @@
       <button type="button" id="crmBootRetry" class="primary hidden">Обновить страницу</button>
     </div>
   </div>
-  <button type="button" class="theme-fab ghost small-btn" id="themeToggle" aria-pressed="false" aria-label="Переключить тему оформления">
-    <span class="theme-fab__icon" aria-hidden="true">🌙</span>
-    <span class="theme-fab__text">Тёмная</span>
-  </button>
   <div id="loginScreen" class="login-box">
+    <button
+      type="button"
+      class="login-theme-btn"
+      id="loginThemeBtn"
+      aria-pressed="false"
+      aria-label="Переключить тему оформления"
+    >
+      <img
+        id="loginBrandLogo"
+        class="app-brand__logo"
+        src="assets/logo.svg"
+        width="44"
+        height="52"
+        alt=""
+        decoding="async"
+      />
+    </button>
     <div class="card">
       <h1>Вход</h1>
       <p class="sub">Введите логин и пароль</p>
@@ -60,15 +73,23 @@
   <div id="appScreen" class="hidden">
     <header class="app-brand" id="appBrand" aria-label="Too CRM">
       <h1 class="app-brand__title">
-        <img
-          id="brandLogo"
-          class="app-brand__logo"
-          src="assets/logo.svg"
-          width="44"
-          height="52"
-          alt=""
-          decoding="async"
-        />
+        <button
+          type="button"
+          class="app-brand__toggle"
+          id="brandThemeBtn"
+          aria-pressed="false"
+          aria-label="Переключить тему оформления"
+        >
+          <img
+            id="brandLogo"
+            class="app-brand__logo"
+            src="assets/logo.svg"
+            width="44"
+            height="52"
+            alt=""
+            decoding="async"
+          />
+        </button>
       </h1>
     </header>
     <button type="button" class="app-role-fab" id="roleBadge" aria-label="">

@@ -314,8 +314,10 @@ const els = {
   resultGrid: document.getElementById('resultGrid'),
   totals: document.getElementById('totals'),
   status: document.getElementById('status'),
-  themeToggle: document.getElementById('themeToggle'),
+  brandThemeBtn: document.getElementById('brandThemeBtn'),
   brandLogo: document.getElementById('brandLogo'),
+  loginThemeBtn: document.getElementById('loginThemeBtn'),
+  loginBrandLogo: document.getElementById('loginBrandLogo'),
   mobileNavToggle: document.getElementById('mobileNavToggle'),
   settingsBackBtn: document.getElementById('settingsBackBtn'),
   settingsTitle: document.getElementById('settingsTitle'),
@@ -360,24 +362,26 @@ function applyTheme(theme) {
   try {
     localStorage.setItem(STORAGE_KEYS.theme, next);
   } catch (e) {}
-  updateThemeButton();
-  updateBrandLogo();
+  updateThemeToggleButtons();
+  updateBrandLogos();
 }
 
-function updateBrandLogo() {
-  if (!els.brandLogo) return;
+function updateBrandLogos() {
   const dark = document.documentElement.getAttribute('data-theme') === 'dark';
-  els.brandLogo.src = dark ? 'assets/logo-dark.svg' : 'assets/logo.svg';
+  const src = dark ? 'assets/logo-dark.svg' : 'assets/logo.svg';
+  if (els.brandLogo) els.brandLogo.src = src;
+  if (els.loginBrandLogo) els.loginBrandLogo.src = src;
 }
 
-function updateThemeButton() {
-  if (!els.themeToggle) return;
+function updateThemeToggleButtons() {
   const dark = document.documentElement.getAttribute('data-theme') === 'dark';
-  els.themeToggle.setAttribute('aria-pressed', dark ? 'true' : 'false');
-  const icon = els.themeToggle.querySelector('.theme-fab__icon');
-  const text = els.themeToggle.querySelector('.theme-fab__text');
-  if (icon) icon.textContent = dark ? '☀️' : '🌙';
-  if (text) text.textContent = dark ? 'Светлая' : 'Тёмная';
+  const label = dark ? 'Включить светлую тему' : 'Включить тёмную тему';
+  const pressed = dark ? 'true' : 'false';
+  [els.brandThemeBtn, els.loginThemeBtn].forEach((btn) => {
+    if (!btn) return;
+    btn.setAttribute('aria-pressed', pressed);
+    btn.setAttribute('aria-label', label);
+  });
 }
 
 function initTheme() {
@@ -387,8 +391,13 @@ function initTheme() {
       document.documentElement.setAttribute('data-theme', saved);
     }
   } catch (e) {}
-  updateThemeButton();
-  updateBrandLogo();
+  updateThemeToggleButtons();
+  updateBrandLogos();
+}
+
+function toggleTheme() {
+  const next = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+  applyTheme(next);
 }
 
 function savePercentages() {
@@ -2133,12 +2142,8 @@ els.clearBtn.addEventListener('click', clearAll);
   });
 });
 
-if (els.themeToggle) {
-  els.themeToggle.addEventListener('click', () => {
-    const next = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
-    applyTheme(next);
-  });
-}
+if (els.brandThemeBtn) els.brandThemeBtn.addEventListener('click', toggleTheme);
+if (els.loginThemeBtn) els.loginThemeBtn.addEventListener('click', toggleTheme);
 
 if (els.salaryDirections) {
   els.salaryDirections.addEventListener('click', (e) => {
