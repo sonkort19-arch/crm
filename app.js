@@ -14,6 +14,34 @@ import {
   summarizeOperations,
 } from './services/history-service.js';
 import { pushAuditLog, makeCsv } from './services/audit-service.js';
+import {
+  sumServiceBalances as sumServiceBalancesCore,
+  accrueSalaryFromServices as accrueSalaryFromServicesCore,
+  takeSnapshot as takeSalarySnapshotCore,
+  restoreLastSnapshot as restoreLastSalarySnapshotCore,
+} from './services/salary-service.js';
+import {
+  canDeletePayoutByRole,
+  applyPayout,
+  deletePayout,
+} from './services/payout-service.js';
+import { bindHistoryUi } from './modules/history/history-bindings.js';
+import { bindPayoutUi } from './modules/payout/payout-bindings.js';
+import { bindAppUi } from './modules/app/app-bindings.js';
+import { initMobileNav as initMobileNavModule } from './modules/app/mobile-nav.js';
+import { runStartup } from './modules/app/startup.js';
+import {
+  attachSettingsDetailDirtyTracking as attachSettingsDetailDirtyTrackingModule,
+  bindDeleteCategoryButtons as bindDeleteCategoryButtonsModule,
+} from './modules/settings/settings-bindings.js';
+import {
+  BASE_PERSON_KEYS,
+  DEFAULT_STRUCTURE,
+  deepClone,
+  mergePercentagesFromParsed,
+  normalizeSalaryState,
+} from './core/state.js';
+import { escapeHtml, escapeAttr } from './core/html.js';
 
 const STORAGE_KEYS = {
   auth: 'calc_auth_role',
@@ -27,207 +55,15 @@ const USERS = {
   owner: { login: '560676', password: '560676', role: 'owner', title: 'Владелец' },
 };
 
-const BASE_PERSON_KEYS = ['Юрий', 'Алекс', 'Эрика'];
-const DEFAULT_STRUCTURE = {
-  mobileAngel: {
-    title: 'Мобильный ангел',
-    items: {
-      Юрий: 25,
-      Алекс: 25,
-      Эрика: 9,
-      Аренда: 14,
-      Смм: 4,
-      Развитие: 1,
-      Фонд: 1,
-      Реклама: 1,
-      'Закуп аксессуаров': 1,
-      'Закуп телефонов': 1,
-      Оклад: 18,
-    },
-  },
-  nova: {
-    title: 'Нова',
-    items: {
-      Юрий: 69,
-      Алекс: 7,
-      Эрика: 9,
-      Аренда: 10,
-      Смм: 0,
-      Развитие: 1,
-      Фонд: 1,
-      Реклама: 1,
-      'Закуп аксессуаров': 1,
-      'Закуп телефонов': 1,
-      Оклад: 0,
-    },
-  },
-  tlabs: {
-    title: 'Т-лабс',
-    items: {
-      Юрий: 20,
-      Алекс: 20,
-      Эрика: 9,
-      Аренда: 40,
-      Смм: 0,
-      Развитие: 1,
-      Фонд: 7,
-      Реклама: 1,
-      'Закуп аксессуаров': 1,
-      'Закуп телефонов': 1,
-      Оклад: 0,
-    },
-  },
-};
-
 const { sumPercents, isPercentTotalValid, wouldExceed100, calcService } = PercentLogic;
 
-function deepClone(obj) {
-  return JSON.parse(JSON.stringify(obj));
-}
-
-function mergePercentagesFromParsed(parsed) {
-  if (!parsed || typeof parsed !== 'object') return deepClone(DEFAULT_STRUCTURE);
-
-  const result = {};
-  for (const key of Object.keys(DEFAULT_STRUCTURE)) {
-    const slot = parsed[key];
-    if (
-      slot &&
-      typeof slot === 'object' &&
-      slot.items &&
-      typeof slot.items === 'object' &&
-      !Array.isArray(slot.items)
-    ) {
-      result[key] = {
-        title:
-          typeof slot.title === 'string' && slot.title.trim()
-            ? slot.title
-            : DEFAULT_STRUCTURE[key].title,
-        items: deepClone(slot.items),
-      };
-    } else {
-      result[key] = deepClone(DEFAULT_STRUCTURE[key]);
-    }
-  }
-  return result;
-}
-
 let PERCENTAGES = deepClone(DEFAULT_STRUCTURE);
-
-function normalizeSalaryState(prevState) {
-  const prevBalances =
-    prevState && prevState.balances && typeof prevState.balances === 'object' ? prevState.balances : {};
-  const balances = {};
-  for (const key of Object.keys(DEFAULT_STRUCTURE)) {
-    balances[key] = {};
-    const items = PERCENTAGES[key] && PERCENTAGES[key].items ? PERCENTAGES[key].items : {};
-    const bag = prevBalances[key] && typeof prevBalances[key] === 'object' ? prevBalances[key] : {};
-    for (const name of Object.keys(items)) {
-      const v = bag[name];
-      const n = typeof v === 'number' && Number.isFinite(v) ? v : 0;
-      balances[key][name] = Math.round(n * 100) / 100;
-    }
-  }
-  let payoutLog = [];
-  if (prevState && Array.isArray(prevState.payoutLog)) {
-    payoutLog = prevState.payoutLog
-      .filter((e) => e && typeof e === 'object' && e.serviceKey && e.name && typeof e.amount === 'number')
-      .map((e, idx) => {
-        const id =
-          typeof e.id === 'string' && e.id.trim()
-            ? e.id
-            : `${e.serviceKey}:${e.name}:${e.at || 'na'}:${idx}`;
-        const isDeleted = e.isDeleted === true;
-        const out = {
-          id,
-          serviceKey: e.serviceKey,
-          name: e.name,
-          amount: Math.abs(Number(e.amount) || 0),
-          at: e.at,
-          isDeleted,
-        };
-        if (isDeleted) {
-          out.deletedAt = e.deletedAt || e.at || new Date().toISOString();
-          out.deletedByRole = e.deletedByRole || null;
-          out.deletedByLogin = e.deletedByLogin || null;
-          out.deleteReason = typeof e.deleteReason === 'string' ? e.deleteReason : '';
-        }
-        return out;
-      });
-  }
-  let accrualLog = [];
-  if (prevState && Array.isArray(prevState.accrualLog)) {
-    accrualLog = prevState.accrualLog.filter(
-      (e) =>
-        e &&
-        typeof e === 'object' &&
-        e.serviceKey &&
-        e.name &&
-        typeof e.amount === 'number' &&
-        e.amount > 0
-    );
-  }
-  let payoutDeletionLog = [];
-  if (prevState && Array.isArray(prevState.payoutDeletionLog)) {
-    payoutDeletionLog = prevState.payoutDeletionLog
-      .filter(
-        (e) =>
-          e &&
-          typeof e === 'object' &&
-          e.serviceKey &&
-          e.name &&
-          typeof e.amount === 'number' &&
-          typeof e.reason === 'string' &&
-          e.reason.trim()
-      )
-      .map((e) => ({
-        payoutId: typeof e.payoutId === 'string' ? e.payoutId : '',
-        serviceKey: e.serviceKey,
-        name: e.name,
-        amount: Math.abs(Number(e.amount) || 0),
-        at: e.at || new Date().toISOString(),
-        byRole: e.byRole || null,
-        byLogin: e.byLogin || null,
-        reason: e.reason.trim(),
-      }));
-  } else if (payoutLog.length) {
-    // Миграция старых данных: если удалённые выплаты есть, но отдельного журнала нет.
-    payoutDeletionLog = payoutLog
-      .filter((e) => e.isDeleted && e.deleteReason)
-      .map((e) => ({
-        payoutId: e.id,
-        serviceKey: e.serviceKey,
-        name: e.name,
-        amount: e.amount,
-        at: e.deletedAt || e.at || new Date().toISOString(),
-        byRole: e.deletedByRole || null,
-        byLogin: e.deletedByLogin || null,
-        reason: e.deleteReason,
-      }));
-  }
-
-  let snapshots = [];
-  if (prevState && Array.isArray(prevState.snapshots)) {
-    snapshots = prevState.snapshots
-      .filter((s) => s && typeof s === 'object' && s.balances && s.payoutLog && s.accrualLog)
-      .slice(-5);
-  }
-
-  let auditLog = [];
-  if (prevState && Array.isArray(prevState.auditLog)) {
-    auditLog = prevState.auditLog
-      .filter((e) => e && typeof e === 'object' && e.action && e.at)
-      .slice(-1000);
-  }
-
-  return { balances, payoutLog, accrualLog, payoutDeletionLog, snapshots, auditLog };
-}
 
 function saveSalaryState() {
   schedulePersist();
 }
 
-let SALARY = normalizeSalaryState(null);
+let SALARY = normalizeSalaryState(null, PERCENTAGES);
 let currentRole = null;
 let currentUserLogin = null;
 
@@ -405,34 +241,16 @@ function savePercentages() {
 }
 
 function syncSalaryWithPercentages() {
-  SALARY = normalizeSalaryState(SALARY);
+  SALARY = normalizeSalaryState(SALARY, PERCENTAGES);
   saveSalaryState();
 }
 
 function sumServiceBalances(serviceKey) {
-  const b = SALARY.balances[serviceKey];
-  if (!b || typeof b !== 'object') return 0;
-  const t = Object.values(b).reduce((s, v) => s + (Number(v) || 0), 0);
-  return +t.toFixed(2);
+  return sumServiceBalancesCore(SALARY, serviceKey);
 }
 
 function accrueSalaryFromServices(services) {
-  if (!Array.isArray(SALARY.accrualLog)) SALARY.accrualLog = [];
-  const at = new Date().toISOString();
-  for (const key of Object.keys(services)) {
-    const svc = services[key];
-    if (!svc || typeof svc !== 'object') continue;
-    if (!SALARY.balances[key]) SALARY.balances[key] = {};
-    for (const [name, amount] of Object.entries(svc)) {
-      const add = typeof amount === 'number' && Number.isFinite(amount) ? amount : 0;
-      const cur = SALARY.balances[key][name];
-      const base = typeof cur === 'number' && Number.isFinite(cur) ? cur : 0;
-      SALARY.balances[key][name] = +(base + add).toFixed(2);
-      if (add > 0) {
-        SALARY.accrualLog.push({ serviceKey: key, name, amount: +add.toFixed(2), at });
-      }
-    }
-  }
+  accrueSalaryFromServicesCore(SALARY, services);
   addAudit('accrual_calculated', {
     services: Object.keys(services),
   });
@@ -543,7 +361,7 @@ function setPersonHistoryPreset(preset) {
 }
 
 function canDeletePayout() {
-  return currentRole === 'owner' || currentRole === 'admin';
+  return canDeletePayoutByRole(currentRole);
 }
 
 function getCurrentActor() {
@@ -777,16 +595,7 @@ function closePayoutDeleteModal() {
 }
 
 function takeSalarySnapshot() {
-  if (!Array.isArray(SALARY.snapshots)) SALARY.snapshots = [];
-  SALARY.snapshots.push({
-    at: new Date().toISOString(),
-    balances: deepClone(SALARY.balances || {}),
-    payoutLog: deepClone(SALARY.payoutLog || []),
-    accrualLog: deepClone(SALARY.accrualLog || []),
-    payoutDeletionLog: deepClone(SALARY.payoutDeletionLog || []),
-  });
-  // Храним только последние 5 снимков
-  if (SALARY.snapshots.length > 5) SALARY.snapshots = SALARY.snapshots.slice(-5);
+  takeSalarySnapshotCore(SALARY);
   addAudit('snapshot_take', { snapshots: SALARY.snapshots.length });
   saveSalaryState();
   setUiStatus('Снимок состояния сохранён.', 'ok');
@@ -799,12 +608,12 @@ function restoreLastSalarySnapshot() {
     return;
   }
   if (!window.confirm('Откатить состояние к последнему снимку?')) return;
-  const s = snapshots[snapshots.length - 1];
-  SALARY.balances = deepClone(s.balances || {});
-  SALARY.payoutLog = deepClone(s.payoutLog || []);
-  SALARY.accrualLog = deepClone(s.accrualLog || []);
-  SALARY.payoutDeletionLog = deepClone(s.payoutDeletionLog || []);
-  addAudit('snapshot_restore', { at: s.at || null });
+  const restored = restoreLastSalarySnapshotCore(SALARY);
+  if (!restored.ok) {
+    setUiStatus('Нет снимков для отката.', 'danger');
+    return;
+  }
+  addAudit('snapshot_restore', { at: restored.snapshotAt || null });
   saveSalaryState();
   renderSalaryModule();
   if (salaryDetailOpenKey && els.salaryDetailModal && !els.salaryDetailModal.classList.contains('hidden')) {
@@ -828,8 +637,15 @@ function confirmPayoutDelete() {
   }
 
   const { id, serviceKey, name } = payoutDeleteTarget;
-  const payout = (SALARY.payoutLog || []).find((e) => e.id === id && e.serviceKey === serviceKey && e.name === name);
-  if (!payout || payout.isDeleted) {
+  const actor = getCurrentActor();
+  const deleted = deletePayout(SALARY, {
+    id,
+    serviceKey,
+    name,
+    actor,
+    reason,
+  });
+  if (!deleted.ok) {
     if (els.payoutDeleteStatus) {
       els.payoutDeleteStatus.textContent = 'Эта выплата уже удалена или не найдена.';
       els.payoutDeleteStatus.style.color = 'var(--danger)';
@@ -837,29 +653,7 @@ function confirmPayoutDelete() {
     return;
   }
 
-  if (!SALARY.balances[serviceKey]) SALARY.balances[serviceKey] = {};
-  if (SALARY.balances[serviceKey][name] === undefined) SALARY.balances[serviceKey][name] = 0;
-  SALARY.balances[serviceKey][name] = +(SALARY.balances[serviceKey][name] + payout.amount).toFixed(2);
-
-  const actor = getCurrentActor();
-  const deletedAt = new Date().toISOString();
-  payout.isDeleted = true;
-  payout.deletedAt = deletedAt;
-  payout.deletedByRole = actor.role;
-  payout.deletedByLogin = actor.login;
-  payout.deleteReason = reason;
-
-  if (!Array.isArray(SALARY.payoutDeletionLog)) SALARY.payoutDeletionLog = [];
-  SALARY.payoutDeletionLog.push({
-    payoutId: payout.id,
-    serviceKey,
-    name,
-    amount: payout.amount,
-    at: deletedAt,
-    byRole: actor.role,
-    byLogin: actor.login,
-    reason,
-  });
+  const payout = deleted.payout;
   addAudit('payout_deleted', {
     payoutId: payout.id,
     serviceKey,
@@ -911,20 +705,15 @@ function confirmPayout() {
     }
     return;
   }
-  if (!SALARY.balances[serviceKey]) SALARY.balances[serviceKey] = {};
-  if (SALARY.balances[serviceKey][name] === undefined) SALARY.balances[serviceKey][name] = 0;
-  SALARY.balances[serviceKey][name] = +(SALARY.balances[serviceKey][name] - amount).toFixed(2);
   const actor = getCurrentActor();
-  SALARY.payoutLog.push({
-    id: `${Date.now()}-${Math.random().toString(16).slice(2, 10)}`,
-    serviceKey,
-    name,
-    amount,
-    at: new Date().toISOString(),
-    isDeleted: false,
-    createdByRole: actor.role,
-    createdByLogin: actor.login,
-  });
+  const applied = applyPayout(SALARY, { serviceKey, name, amount, actor });
+  if (!applied.ok) {
+    if (els.payoutModalStatus) {
+      els.payoutModalStatus.textContent = 'Не удалось провести выплату.';
+      els.payoutModalStatus.style.color = 'var(--danger)';
+    }
+    return;
+  }
   addAudit('payout_created', { serviceKey, name, amount });
   saveSalaryState();
   const reopenKey = serviceKey;
@@ -1030,10 +819,6 @@ function refreshUIFromCloud() {
   }
 }
 
-function getPersonKeys() {
-  return BASE_PERSON_KEYS;
-}
-
 function renderService(title, inputSum, data) {
   const rows = Object.entries(data)
     .map(([name, value]) => `<div class="row"><span>${escapeHtml(name)}</span><strong>${formatMoney(value)}</strong></div>`)
@@ -1103,7 +888,7 @@ function calculate(options = {}) {
     }
   }
 
-  const personKeys = getPersonKeys();
+  const personKeys = BASE_PERSON_KEYS;
   const personTotals = {};
 
   personKeys.forEach((name) => {
@@ -1634,12 +1419,12 @@ function clearAccrualsData() {
     snapshots: Array.isArray(SALARY.snapshots) ? SALARY.snapshots : [],
     auditLog: Array.isArray(SALARY.auditLog) ? SALARY.auditLog : [],
   };
-  SALARY = normalizeSalaryState(nextState);
+  SALARY = normalizeSalaryState(nextState, PERCENTAGES);
 }
 
 function resetCategoriesAndLinkedData() {
   PERCENTAGES = deepClone(DEFAULT_STRUCTURE);
-  SALARY = normalizeSalaryState(null);
+  SALARY = normalizeSalaryState(null, PERCENTAGES);
   settingsNavView = 'hub';
   settingsDetailKey = null;
   settingsDetailDirty = false;
@@ -1792,40 +1577,35 @@ function markSettingsDetailDirty() {
 }
 
 function attachSettingsDetailDirtyTracking() {
-  els.settingsContent.querySelectorAll('.percent-row input').forEach((el) => {
-    el.addEventListener('input', markSettingsDetailDirty);
-    el.addEventListener('change', markSettingsDetailDirty);
+  attachSettingsDetailDirtyTrackingModule({
+    rootEl: els.settingsContent,
+    onDirty: markSettingsDetailDirty,
   });
 }
 
 function bindDeleteCategoryButtons() {
-  document.querySelectorAll('.delete-category-btn').forEach((btn) => {
-    btn.addEventListener('click', () => {
-      if (btn.dataset.confirmDelete === 'true' && !window.confirm('Точно удалить?')) {
-        return;
-      }
-      const service = btn.dataset.service;
-      const name = btn.dataset.name;
-      const newStructure = deepClone(PERCENTAGES);
-      delete newStructure[service].items[name];
-
-      const total = sumPercents(newStructure[service].items);
-
-      if (!isPercentTotalValid(total)) {
-        els.settingsStatus.textContent = `После удаления сумма = ${formatPercentForMessage(total)}%`;
-        els.settingsStatus.style.color = 'var(--danger)';
-      } else {
-        els.settingsStatus.textContent = 'Категория удалена.';
-        els.settingsStatus.style.color = 'var(--ok)';
-      }
-
-      PERCENTAGES = newStructure;
-      savePercentages();
-      syncSalaryWithPercentages();
-      updateLoadWarningBanner();
-      settingsDetailDirty = false;
-      renderSettings();
-    });
+  bindDeleteCategoryButtonsModule({
+    rootDocument: document,
+    getPercentages: () => PERCENTAGES,
+    setPercentages: (next) => {
+      PERCENTAGES = next;
+    },
+    deepClone,
+    sumPercents,
+    isPercentTotalValid,
+    formatPercentForMessage,
+    savePercentages,
+    syncSalaryWithPercentages,
+    updateLoadWarningBanner,
+    setSettingsStatus: (msg, kind) => {
+      els.settingsStatus.textContent = msg;
+      els.settingsStatus.style.color = kind === 'danger' ? 'var(--danger)' : 'var(--ok)';
+    },
+    setSettingsDetailDirty: (v) => {
+      settingsDetailDirty = v;
+    },
+    renderSettings,
+    confirmDelete: () => window.confirm('Точно удалить?'),
   });
 }
 
@@ -2039,19 +1819,6 @@ function handleAddCategoryClick(e) {
   renderSettings();
 }
 
-function escapeHtml(value) {
-  return String(value)
-    .replaceAll('&', '&amp;')
-    .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;')
-    .replaceAll('"', '&quot;')
-    .replaceAll("'", '&#039;');
-}
-
-function escapeAttr(value) {
-  return escapeHtml(value);
-}
-
 function exportPercentagesJson() {
   if (currentRole !== 'owner') return;
   const blob = new Blob([JSON.stringify(PERCENTAGES, null, 2)], { type: 'application/json;charset=utf-8' });
@@ -2102,108 +1869,36 @@ function boot() {
   }
 }
 
-els.loginBtn.addEventListener('click', login);
-els.passwordInput.addEventListener('keydown', (e) => {
-  if (e.key === 'Enter') login();
+bindAppUi({
+  els,
+  login,
+  showDistribution,
+  showSalary,
+  showSettings,
+  showCalculator,
+  openDevToolsModal,
+  settingsGoBack,
+  saveSettings,
+  handleAddCategoryClick,
+  logout,
+  exportPercentagesJson,
+  canImportPercents: () => currentRole === 'owner',
+  openImportFilePicker: () => els.importPercentsFile.click(),
+  importPercentagesFromFile,
+  calculate,
+  copyText,
+  clearAll,
+  toggleTheme,
+  openSalaryDetailModal,
+  openPersonHistoryModal,
+  openPayoutModal,
+  runDevToolsAction,
+  closePayoutModal,
+  closePayoutDeleteModal,
+  closeSalaryDetailModal,
+  closePersonHistoryModal,
+  closeDevToolsModal,
 });
-els.loginInput.addEventListener('keydown', (e) => {
-  if (e.key === 'Enter') login();
-});
-
-if (els.distributionBtn) els.distributionBtn.addEventListener('click', showDistribution);
-if (els.salaryBtn) els.salaryBtn.addEventListener('click', showSalary);
-if (els.settingsBtn) els.settingsBtn.addEventListener('click', showSettings);
-if (els.calculatorBtn) els.calculatorBtn.addEventListener('click', showCalculator);
-if (els.devToolsBtn) els.devToolsBtn.addEventListener('click', openDevToolsModal);
-if (els.settingsBackBtn) els.settingsBackBtn.addEventListener('click', settingsGoBack);
-if (els.saveSettingsBtn) els.saveSettingsBtn.addEventListener('click', saveSettings);
-els.settingsContent.addEventListener('click', handleAddCategoryClick);
-els.logoutBtn.addEventListener('click', logout);
-
-els.exportPercentsBtn.addEventListener('click', exportPercentagesJson);
-els.importPercentsBtn.addEventListener('click', () => {
-  if (currentRole !== 'owner') return;
-  els.importPercentsFile.click();
-});
-els.importPercentsFile.addEventListener('change', (e) => {
-  const file = e.target.files && e.target.files[0];
-  e.target.value = '';
-  if (!file || currentRole !== 'owner') return;
-  importPercentagesFromFile(file);
-});
-
-els.calcBtn.addEventListener('click', calculate);
-els.copyBtn.addEventListener('click', copyText);
-els.clearBtn.addEventListener('click', clearAll);
-
-[els.mobileAngel, els.nova, els.tlabs].forEach((input) => {
-  input.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') calculate();
-  });
-});
-
-if (els.brandThemeBtn) els.brandThemeBtn.addEventListener('click', toggleTheme);
-if (els.loginThemeBtn) els.loginThemeBtn.addEventListener('click', toggleTheme);
-
-if (els.salaryDirections) {
-  els.salaryDirections.addEventListener('click', (e) => {
-    const btn = e.target.closest('[data-salary-open]');
-    if (!btn) return;
-    const key = btn.getAttribute('data-salary-open');
-    if (key) openSalaryDetailModal(key);
-  });
-}
-
-if (els.salaryDetailModal) {
-  els.salaryDetailModal.addEventListener('click', (e) => {
-    const h = e.target.closest('[data-salary-history]');
-    if (h) {
-      e.preventDefault();
-      const serviceKey = h.getAttribute('data-salary-history');
-      const name = h.getAttribute('data-person-name');
-      if (serviceKey && name) openPersonHistoryModal(serviceKey, name);
-      return;
-    }
-    const p = e.target.closest('[data-salary-payout]');
-    if (!p) return;
-    e.preventDefault();
-    const serviceKey = p.getAttribute('data-salary-payout');
-    const name = p.getAttribute('data-payout-name');
-    if (serviceKey && name) openPayoutModal(serviceKey, name);
-  });
-}
-
-if (els.personHistoryModal) {
-  els.personHistoryModal.addEventListener('click', (e) => {
-    const b = e.target.closest('[data-person-history-preset]');
-    if (b) {
-      const preset = b.getAttribute('data-person-history-preset');
-      if (preset === 'month' || preset === '30' || preset === 'prevMonth') setPersonHistoryPreset(preset);
-      return;
-    }
-    const d = e.target.closest('[data-delete-payout-id]');
-    if (!d) return;
-    e.preventDefault();
-    openPayoutDeleteModal({
-      id: d.getAttribute('data-delete-payout-id'),
-      serviceKey: d.getAttribute('data-delete-service'),
-      name: d.getAttribute('data-delete-name'),
-      amount: Number(d.getAttribute('data-delete-amount')),
-    });
-  });
-}
-
-function onPersonHistoryDateChange() {
-  updatePersonHistoryPresetButtons(null);
-  renderPersonHistoryBody();
-}
-
-function onPersonHistoryFilterChange() {
-  personHistoryFilters.type = (els.personHistoryType && els.personHistoryType.value) || 'all';
-  personHistoryFilters.minAmount = toNumber(els.personHistoryMinAmount && els.personHistoryMinAmount.value);
-  personHistoryFilters.search = String((els.personHistorySearch && els.personHistorySearch.value) || '').trim();
-  renderPersonHistoryBody();
-}
 
 function exportPersonHistoryCsv() {
   if (!personHistoryTarget.serviceKey || !personHistoryTarget.name) return;
@@ -2239,206 +1934,63 @@ function exportPersonHistoryCsv() {
   setUiStatus('CSV-отчёт выгружен.', 'ok');
 }
 
-if (els.personHistoryDateFrom) {
-  els.personHistoryDateFrom.addEventListener('change', onPersonHistoryDateChange);
-}
-if (els.personHistoryDateTo) {
-  els.personHistoryDateTo.addEventListener('change', onPersonHistoryDateChange);
-}
-if (els.personHistoryType) {
-  els.personHistoryType.addEventListener('change', onPersonHistoryFilterChange);
-}
-if (els.personHistoryMinAmount) {
-  els.personHistoryMinAmount.addEventListener('input', onPersonHistoryFilterChange);
-}
-if (els.personHistorySearch) {
-  els.personHistorySearch.addEventListener('input', onPersonHistoryFilterChange);
-}
-if (els.exportHistoryCsvBtn) {
-  els.exportHistoryCsvBtn.addEventListener('click', exportPersonHistoryCsv);
-}
-if (els.takeSnapshotBtn) {
-  els.takeSnapshotBtn.addEventListener('click', takeSalarySnapshot);
-}
-if (els.restoreSnapshotBtn) {
-  els.restoreSnapshotBtn.addEventListener('click', restoreLastSalarySnapshot);
-}
-
-if (els.payoutConfirmBtn) {
-  els.payoutConfirmBtn.addEventListener('click', confirmPayout);
-}
-if (els.payoutDeleteConfirmBtn) {
-  els.payoutDeleteConfirmBtn.addEventListener('click', confirmPayoutDelete);
-}
-if (els.devClearAccrualsBtn) {
-  els.devClearAccrualsBtn.addEventListener('click', () => runDevToolsAction('clear_accruals'));
-}
-if (els.devResetCategoriesBtn) {
-  els.devResetCategoriesBtn.addEventListener('click', () => runDevToolsAction('reset_categories'));
-}
-
-if (els.payoutAmountInput) {
-  els.payoutAmountInput.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') confirmPayout();
-  });
-}
-
-els.appScreen.addEventListener('click', (e) => {
-  if (e.target.closest('[data-modal-close="payout"]')) closePayoutModal();
-  if (e.target.closest('[data-modal-close="payoutDelete"]')) closePayoutDeleteModal();
-  if (e.target.closest('[data-modal-close="salaryDetail"]')) closeSalaryDetailModal();
-  if (e.target.closest('[data-modal-close="personHistory"]')) closePersonHistoryModal();
-  if (e.target.closest('[data-modal-close="devTools"]')) closeDevToolsModal();
+bindHistoryUi({
+  els,
+  setPreset: (preset) => {
+    if (preset) {
+      setPersonHistoryPreset(preset);
+      return;
+    }
+    updatePersonHistoryPresetButtons(null);
+  },
+  openDeleteModal: openPayoutDeleteModal,
+  renderBody: renderPersonHistoryBody,
+  setFilters: ({ type, minAmount, search }) => {
+    personHistoryFilters.type = type || 'all';
+    personHistoryFilters.minAmount = toNumber(minAmount);
+    personHistoryFilters.search = String(search || '').trim();
+  },
+  exportCsv: exportPersonHistoryCsv,
 });
 
-document.addEventListener('keydown', (e) => {
-  if (e.key !== 'Escape') return;
-  if (els.payoutModal && !els.payoutModal.classList.contains('hidden')) {
-    closePayoutModal();
-    return;
-  }
-  if (els.payoutDeleteModal && !els.payoutDeleteModal.classList.contains('hidden')) {
-    closePayoutDeleteModal();
-    return;
-  }
-  if (els.personHistoryModal && !els.personHistoryModal.classList.contains('hidden')) {
-    closePersonHistoryModal();
-    return;
-  }
-  if (els.salaryDetailModal && !els.salaryDetailModal.classList.contains('hidden')) {
-    closeSalaryDetailModal();
-    return;
-  }
-  if (els.devToolsModal && !els.devToolsModal.classList.contains('hidden')) {
-    closeDevToolsModal();
-  }
+bindPayoutUi({
+  els,
+  confirmPayout,
+  confirmPayoutDelete,
+  takeSnapshot: takeSalarySnapshot,
+  restoreSnapshot: restoreLastSalarySnapshot,
 });
 
 const MOBILE_NAV_MQ = window.matchMedia('(max-width: 639px)');
 
-function syncMobileNavChrome() {
-  const t = els.mobileNavToggle;
-  if (!t) return;
-  if (!MOBILE_NAV_MQ.matches) {
-    document.body.classList.remove('mobile-nav-expanded');
-    t.removeAttribute('aria-hidden');
-    return;
-  }
-  /* ≤639px: нижний tab bar, режим «раскрытого» бокового меню не используется */
-  document.body.classList.remove('mobile-nav-expanded');
-  t.setAttribute('aria-expanded', 'false');
-  t.setAttribute('aria-hidden', 'true');
-  t.setAttribute('aria-label', 'Меню разделов');
-}
-
 function initMobileNav() {
-  if (!els.mobileNavToggle) return;
-  els.mobileNavToggle.addEventListener('click', () => {
-    if (!MOBILE_NAV_MQ.matches) return;
-    document.body.classList.toggle('mobile-nav-expanded');
-    syncMobileNavChrome();
+  initMobileNavModule({
+    toggleEl: els.mobileNavToggle,
+    mediaQuery: MOBILE_NAV_MQ,
+    bodyEl: document.body,
   });
-  const onMq = () => syncMobileNavChrome();
-  if (typeof MOBILE_NAV_MQ.addEventListener === 'function') {
-    MOBILE_NAV_MQ.addEventListener('change', onMq);
-  } else {
-    MOBILE_NAV_MQ.addListener(onMq);
-  }
-  syncMobileNavChrome();
 }
 
-function getBootEls() {
-  return {
-    overlay: document.getElementById('crmBootOverlay'),
-    message: document.getElementById('crmBootMessage'),
-    retry: document.getElementById('crmBootRetry'),
-  };
-}
-
-function showBootOverlay(msg, showRetry) {
-  const { overlay, message, retry } = getBootEls();
-  if (message) message.textContent = msg;
-  if (retry) {
-    retry.classList.toggle('hidden', !showRetry);
-    retry.onclick = showRetry
-      ? () => {
-          location.reload();
-        }
-      : null;
-  }
-  if (overlay) overlay.classList.remove('hidden');
-}
-
-function hideBootOverlay() {
-  const { overlay } = getBootEls();
-  if (overlay) overlay.classList.add('hidden');
-}
-
-async function startup() {
-  setStateGetter(() => ({ percentages: PERCENTAGES, salary: SALARY }));
-  window.addEventListener('error', (e) => {
-    addAudit('client_error', {
-      message: e.message || 'unknown',
-      source: e.filename || '',
-      line: e.lineno || 0,
-    });
-    saveSalaryState();
-  });
-  window.addEventListener('unhandledrejection', (e) => {
-    addAudit('client_unhandled_rejection', {
-      reason: String(e.reason || 'unknown'),
-    });
-    saveSalaryState();
-  });
-  window.__crmCloudPersistError = (err) => {
-    if (err && err.code === 'optimistic_conflict') {
-      setUiStatus('Обнаружен конфликт изменений. Данные были обновлены с другого клиента, обновите действие.', 'danger');
-      return;
-    }
-    setUiStatus('Не удалось сохранить в облако. Проверьте сеть.', 'danger');
-  };
-
-  const flushOnBackground = () => {
-    persistNow().catch((err) => {
-      if (err && err.code === 'optimistic_conflict') return;
-      console.error('CRM cloud flush on background', err);
-    });
-  };
-  window.addEventListener('pagehide', flushOnBackground);
-  document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'hidden') flushOnBackground();
-  });
-
-  initTheme();
-  initMobileNav();
-  initCalculator();
-
-  if (!isConfigured()) {
-    showBootOverlay(
-      'Нет настроек Supabase. Создайте crm-config.js из crm-config.example.js и укажите supabaseUrl и supabaseAnonKey (см. README).',
-      false
-    );
-    return;
-  }
-
-  showBootOverlay('Загрузка данных…', false);
-
-  const res = await initCrmCloud({
-    onRow: (row) => {
-      if (!row) return;
-      PERCENTAGES = mergePercentagesFromParsed(row.percentages);
-      SALARY = normalizeSalaryState(row.salary);
-      refreshUIFromCloud();
-    },
-  });
-
-  if (!res.ok) {
-    showBootOverlay(`Ошибка загрузки из Supabase: ${res.error || 'неизвестно'}`, true);
-    return;
-  }
-
-  hideBootOverlay();
-  boot();
-}
-
-startup();
+runStartup({
+  getState: () => ({ percentages: PERCENTAGES, salary: SALARY }),
+  setStateGetter,
+  addAudit,
+  saveSalaryState,
+  setUiStatus,
+  persistNow,
+  initTheme,
+  initMobileNav,
+  initCalculator,
+  isConfigured,
+  initCrmCloud,
+  mergePercentagesFromParsed,
+  normalizeSalaryState,
+  refreshUIFromCloud,
+  setPercentages: (next) => {
+    PERCENTAGES = next;
+  },
+  setSalary: (next) => {
+    SALARY = next;
+  },
+  boot,
+});

@@ -1,0 +1,358 @@
+/* LAYOUT */
+
+.wrap {
+  width: 100%;
+  max-width: 760px;
+  margin: 0 auto;
+  display: grid;
+  gap: 14px;
+}
+
+.app-brand {
+  position: fixed;
+  top: calc(10px + env(safe-area-inset-top));
+  left: max(12px, env(safe-area-inset-left));
+  z-index: 55;
+  pointer-events: auto;
+}
+
+.app-brand__title {
+  margin: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 0;
+  font-size: clamp(1.2rem, 3.8vw, 1.45rem);
+  font-weight: 800;
+  letter-spacing: -0.045em;
+  line-height: 1.1;
+}
+
+.app-brand__toggle {
+  pointer-events: auto;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  border-radius: 12px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  -webkit-tap-highlight-color: transparent;
+  transition: opacity var(--transition), transform var(--transition);
+}
+
+.app-brand__toggle:hover {
+  opacity: 0.92;
+}
+
+.app-brand__toggle:active {
+  transform: scale(0.98);
+}
+
+.app-brand__toggle:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 4px;
+}
+
+.login-theme-btn {
+  position: fixed;
+  top: calc(10px + env(safe-area-inset-top));
+  left: max(12px, env(safe-area-inset-left));
+  z-index: 60;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  border-radius: 12px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  -webkit-tap-highlight-color: transparent;
+  transition: opacity var(--transition), transform var(--transition);
+}
+
+.login-theme-btn:hover {
+  opacity: 0.92;
+}
+
+.login-theme-btn:active {
+  transform: scale(0.98);
+}
+
+.login-theme-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 4px;
+}
+
+.app-brand__logo {
+  display: block;
+  width: 40px;
+  height: auto;
+  flex-shrink: 0;
+}
+
+.app-role-fab {
+  position: fixed;
+  bottom: calc(12px + env(safe-area-inset-bottom));
+  left: max(12px, env(safe-area-inset-left));
+  z-index: 55;
+  width: var(--app-role-fab-size);
+  height: var(--app-role-fab-size);
+  min-height: 0;
+  padding: 0;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--line);
+  background: var(--card);
+  box-shadow: var(--shadow-md);
+  color: var(--accent);
+  cursor: default;
+  transition: box-shadow var(--transition), border-color var(--transition), background var(--transition);
+}
+
+.app-role-fab:hover {
+  box-shadow: var(--shadow-lg);
+}
+
+.app-role-fab:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+
+.app-role-fab__icon {
+  width: 26px;
+  height: 26px;
+}
+
+/* App shell: sidebar nav + main column */
+.wrap.app-shell {
+  display: block;
+  max-width: 900px;
+  padding-left: calc(var(--app-sidebar-w) + 12px);
+}
+
+.app-sidebar {
+  position: fixed;
+  left: max(12px, env(safe-area-inset-left));
+  top: calc(var(--app-brand-stack) + env(safe-area-inset-top));
+  width: var(--app-sidebar-w);
+  z-index: 40;
+  max-height: calc(
+    var(--vv-height) - var(--app-brand-stack) - var(--app-role-fab-size) - var(--app-role-fab-gap) - 24px - env(safe-area-inset-top) -
+      env(safe-area-inset-bottom)
+  );
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 8px 6px;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  box-shadow: var(--shadow-sm);
+}
+
+.app-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.app-nav__btn {
+  width: 100%;
+  font-size: var(--font-size-small);
+  padding: 8px 7px;
+  line-height: 1.25;
+  border: 1px solid var(--line);
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 6px;
+  border-radius: 8px;
+  background: transparent;
+  min-height: 34px;
+}
+
+.app-nav__btn--dev {
+  border-color: color-mix(in srgb, var(--accent) 24%, var(--line));
+}
+
+.app-nav__glyph {
+  display: none;
+  line-height: 1;
+  font-size: 1.05rem;
+}
+
+.app-nav__label {
+  display: inline;
+}
+
+.mobile-nav-toggle {
+  display: none;
+  width: 100%;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-bottom: 6px;
+  font-size: var(--font-size-small);
+  font-weight: 700;
+  min-height: var(--control-height);
+  padding: 7px 9px;
+  border: 1px solid var(--line);
+}
+
+.mobile-nav-toggle__fab {
+  display: none;
+  font-size: 1.1rem;
+  line-height: 1;
+}
+
+.mobile-nav-toggle__full {
+  display: inline;
+}
+
+body.distribution-open #distributionBtn.app-nav__btn,
+body.salary-open #salaryBtn.app-nav__btn,
+body.settings-open #settingsBtn.app-nav__btn,
+body.calculator-open #calculatorBtn.app-nav__btn {
+  background: var(--nav-active-bg);
+  color: var(--nav-active-text);
+  border-color: var(--nav-active-border);
+  font-weight: 700;
+  box-shadow: var(--nav-active-shadow);
+}
+
+body.distribution-open #distributionBtn.app-nav__btn:hover,
+body.salary-open #salaryBtn.app-nav__btn:hover,
+body.settings-open #settingsBtn.app-nav__btn:hover,
+body.calculator-open #calculatorBtn.app-nav__btn:hover {
+  background: var(--nav-active-bg);
+  color: var(--nav-active-text);
+  border-color: var(--nav-active-border);
+  filter: brightness(1.04);
+}
+
+body.distribution-open #distributionBtn.app-nav__btn:focus-visible,
+body.salary-open #salaryBtn.app-nav__btn:focus-visible,
+body.settings-open #settingsBtn.app-nav__btn:focus-visible,
+body.calculator-open #calculatorBtn.app-nav__btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+@media (max-width: 639px) {
+  /* Tab bar внизу вместо левого rail; экран входа без #appScreen — панели нет */
+  .wrap.app-shell {
+    padding-left: max(12px, env(safe-area-inset-left));
+    padding-right: max(12px, env(safe-area-inset-right));
+    padding-bottom: calc(var(--app-bottom-nav-inner) + env(safe-area-inset-bottom) + 12px);
+  }
+
+  .mobile-nav-toggle {
+    display: none !important;
+  }
+
+  .app-sidebar {
+    top: auto;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    width: 100%;
+    min-width: 0;
+    max-width: none;
+    height: auto;
+    min-height: calc(var(--app-bottom-nav-inner) + env(safe-area-inset-bottom));
+    max-height: none;
+    padding: 6px max(8px, env(safe-area-inset-left)) calc(8px + env(safe-area-inset-bottom))
+      max(8px, env(safe-area-inset-right));
+    border-radius: 14px 14px 0 0;
+    z-index: 125;
+    box-shadow: 0 -6px 28px rgba(15, 23, 42, 0.1);
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    justify-content: flex-end;
+  }
+
+  [data-theme='dark'] .app-sidebar {
+    box-shadow: 0 -8px 32px rgba(0, 0, 0, 0.45);
+  }
+
+  .app-nav {
+    flex-direction: row;
+    flex-wrap: nowrap;
+    justify-content: space-around;
+    align-items: center;
+    gap: 2px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+
+  .app-nav::-webkit-scrollbar {
+    display: none;
+  }
+
+  .app-nav__label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+
+  .app-nav__glyph {
+    display: block;
+    font-size: 1.12rem;
+  }
+
+  .app-nav__btn {
+    width: 40px;
+    height: 40px;
+    min-width: 40px;
+    min-height: 40px;
+    flex: 0 0 auto;
+    padding: 0;
+    border-radius: 50%;
+    margin: 0;
+    justify-content: center;
+  }
+
+  .app-nav__btn--logout {
+    border-color: rgba(220, 38, 38, 0.45);
+  }
+
+  .app-nav__btn--dev {
+    border-color: color-mix(in srgb, var(--accent) 45%, transparent);
+  }
+
+  [data-theme='dark'] .app-nav__btn--logout {
+    border-color: rgba(248, 113, 113, 0.45);
+  }
+
+  .app-role-fab {
+    bottom: calc(10px + var(--app-bottom-nav-inner) + env(safe-area-inset-bottom));
+    left: auto;
+    right: max(12px, env(safe-area-inset-right));
+    z-index: 126;
+  }
+
+  body.settings-open #settingsCard,
+  body.salary-open #salaryCard {
+    max-height: calc(100dvh - 100px - var(--app-bottom-nav-inner) - env(safe-area-inset-bottom));
+    max-height: calc(100vh - 100px - var(--app-bottom-nav-inner) - env(safe-area-inset-bottom));
+  }
+}
+
+.app-main {
+  min-width: 0;
+  display: grid;
+  gap: 8px;
+  padding-top: calc(var(--app-brand-stack) - 8px);
+}

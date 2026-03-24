@@ -1,0 +1,36 @@
+/* LAYOUT STATES */
+
+body.settings-open,
+body.salary-open,
+body.calculator-open {
+  padding-bottom: calc(16px + env(safe-area-inset-bottom));
+}
+
+body:not(.distribution-open) #calcWorkspace,
+body.settings-open #calcWorkspace,
+body.salary-open #calcWorkspace {
+  display: none !important;
+}
+
+body:not(.calculator-open) #calculatorCard {
+  display: none !important;
+}
+
+body.settings-open #settingsCard {
+  max-height: calc(var(--vv-height) - 100px);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+body.settings-open #settingsCard.hidden {
+  display: none !important;
+}
+
+body.settings-open #settingsContent {
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
+  -webkit-overflow-scrolling: touch;
+  padding-top: 4px;
+}

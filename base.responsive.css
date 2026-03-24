@@ -1,0 +1,23 @@
+/* BASE RESPONSIVE */
+
+@media (min-width: 700px) {
+  body {
+    padding: 18px;
+    padding-top: calc(18px + env(safe-area-inset-top));
+    padding-bottom: calc(24px + env(safe-area-inset-bottom));
+  }
+
+  body.settings-open,
+  body.salary-open,
+  body.calculator-open {
+    padding-bottom: calc(20px + env(safe-area-inset-bottom));
+  }
+
+  .actions:not(.actions--calc) {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .result-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}

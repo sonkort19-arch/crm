@@ -1,0 +1,97 @@
+/* TOKENS */
+
+:root {
+  --vv-height: 100dvh;
+  --vv-offset-top: 0px;
+  color-scheme: light;
+  --bg-top: #f8fafc;
+  --bg-bottom: #f1f5f9;
+  --card: #ffffff;
+  --text: #0f172a;
+  --muted: #64748b;
+  --line: #e2e8f0;
+  --input-border: #cbd5e1;
+  --input-bg: #ffffff;
+  --input-block-bg: #f8fafc;
+  --surface-2: #f1f5f9;
+  --surface-elevated: #ffffff;
+  --accent: #4f46e5;
+  --accent-hover: #4338ca;
+  --accent-2: #3730a3;
+  --soft: #eef2ff;
+  --soft-text: #312e81;
+  --ok: #0d9488;
+  --danger: #dc2626;
+  --danger-bg: #fef2f2;
+  --danger-text: #991b1b;
+  --ghost-hover: #e0e7ff;
+  --danger-btn-bg: #fee2e2;
+  --danger-btn-hover: #fecaca;
+  --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.04);
+  --shadow-md: 0 4px 14px rgba(15, 23, 42, 0.06);
+  --shadow-lg: 0 10px 28px rgba(15, 23, 42, 0.08);
+  --focus-ring: rgba(79, 70, 229, 0.28);
+  --radius: 14px;
+  --radius-sm: 10px;
+  --radius-inner: 10px;
+  --row-border: #e2e8f0;
+  --load-warning-border: #fecaca;
+  --load-warning-bg: #fff7f7;
+  --transition: 0.18s ease;
+  --app-sidebar-w: max(130px, min(164px, 35vw));
+  --app-brand-stack: 52px;
+  --app-role-fab-size: 44px;
+  --app-role-fab-gap: 12px;
+  --mobile-nav-rail: 52px;
+  --mobile-nav-fab: 36px;
+  /* нижняя панель навигации (мобильный tab bar), без safe-area */
+  --app-bottom-nav-inner: 52px;
+  --nav-active-bg: linear-gradient(180deg, #edf3ff 0%, #dbeafe 100%);
+  --nav-active-border: #a5b4fc;
+  --nav-active-text: #312e81;
+  --nav-active-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.5);
+  --font-size-base: 13px;
+  --font-size-small: 12px;
+  --control-height: 36px;
+}
+
+[data-theme='dark'] {
+  color-scheme: dark;
+  --bg-top: #0f1419;
+  --bg-bottom: #111827;
+  --card: #1e293b;
+  --text: #f1f5f9;
+  --muted: #94a3b8;
+  --line: #334155;
+  --input-border: #475569;
+  --input-bg: #0f172a;
+  --input-block-bg: #1e293b;
+  --surface-2: #334155;
+  --surface-elevated: #1e293b;
+  --accent: #818cf8;
+  --accent-hover: #a5b4fc;
+  --accent-2: #6366f1;
+  --soft: rgba(99, 102, 241, 0.2);
+  --soft-text: #e0e7ff;
+  --ok: #2dd4bf;
+  --danger: #f87171;
+  --danger-bg: rgba(127, 29, 29, 0.35);
+  --danger-text: #fecaca;
+  --ghost-hover: rgba(99, 102, 241, 0.25);
+  --danger-btn-bg: rgba(127, 29, 29, 0.4);
+  --danger-btn-hover: rgba(153, 27, 27, 0.5);
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.35);
+  --shadow-md: 0 10px 30px rgba(0, 0, 0, 0.45);
+  --shadow-lg: 0 24px 56px rgba(0, 0, 0, 0.5);
+  --focus-ring: rgba(129, 140, 248, 0.45);
+  --row-border: #475569;
+  --load-warning-border: #b91c1c;
+  --load-warning-bg: rgba(127, 29, 29, 0.35);
+  --nav-active-bg: linear-gradient(180deg, rgba(99, 102, 241, 0.45) 0%, rgba(79, 70, 229, 0.35) 100%);
+  --nav-active-border: rgba(129, 140, 248, 0.65);
+  --nav-active-text: #eef2ff;
+  --nav-active-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  --mobile-nav-rail: 52px;
+  --mobile-nav-fab: 36px;
+  --app-bottom-nav-inner: 52px;
+}

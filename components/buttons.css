@@ -1,0 +1,108 @@
+/* BUTTONS */
+
+.actions {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.actions--calc {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.actions--calc button {
+  padding: 8px 8px;
+  font-size: var(--font-size-small);
+  min-height: var(--control-height);
+}
+
+.btn-label--short {
+  display: none;
+}
+
+@media (max-width: 520px) {
+  .actions--calc .btn-label--full {
+    display: none;
+  }
+
+  .actions--calc .btn-label--short {
+    display: inline;
+  }
+}
+
+button {
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  min-height: var(--control-height);
+  padding: 8px 10px;
+  font-size: var(--font-size-base);
+  font-weight: 600;
+  cursor: pointer;
+  width: 100%;
+  -webkit-tap-highlight-color: transparent;
+  font-family: inherit;
+  transition: background var(--transition), border-color var(--transition), color var(--transition);
+}
+
+button:active:not(:disabled) {
+  transform: none;
+}
+
+.primary {
+  background: #2563eb;
+  color: #fff;
+  border-color: #1d4ed8;
+  box-shadow: none;
+}
+
+[data-theme='dark'] .primary {
+  background: #4f46e5;
+  border-color: #6366f1;
+}
+
+.primary:hover {
+  filter: brightness(1.03);
+}
+
+.primary:active {
+  filter: brightness(0.96);
+}
+
+.ghost {
+  background: #f8fafc;
+  color: #334155;
+  border: 1px solid var(--line);
+}
+
+.ghost:hover {
+  background: #f1f5f9;
+}
+
+[data-theme='dark'] .ghost {
+  background: var(--soft);
+  color: var(--soft-text);
+  border-color: var(--line);
+}
+
+[data-theme='dark'] .ghost:hover {
+  background: var(--ghost-hover);
+}
+
+.danger {
+  background: var(--danger-btn-bg);
+  color: var(--danger-text);
+}
+
+.danger:hover {
+  background: var(--danger-btn-hover);
+}
+
+
+.small-btn {
+  min-height: var(--control-height);
+  font-size: var(--font-size-small);
+  padding: 7px 10px;
+  width: auto;
+}

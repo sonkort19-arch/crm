@@ -1,0 +1,12 @@
+/* SALARY STATES */
+
+body.salary-open #salaryCard {
+  max-height: calc(var(--vv-height) - 100px);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+body.salary-open #salaryCard.hidden {
+  display: none !important;
+}

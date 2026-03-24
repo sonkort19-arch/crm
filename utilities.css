@@ -1,0 +1,128 @@
+/* UTILITIES */
+
+.status {
+  min-height: 20px;
+  color: var(--ok);
+  font-weight: 700;
+  margin-top: 10px;
+  font-size: 14px;
+}
+
+.result-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+}
+
+.service-box {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-inner);
+  padding: 12px 14px;
+  background: var(--surface-elevated);
+  transition: background var(--transition), border-color var(--transition);
+}
+
+.service-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: var(--soft);
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--row-border);
+  font-size: 12px;
+}
+
+.row:last-child {
+  border-bottom: 0;
+}
+
+.row strong {
+  font-size: 12px;
+  white-space: nowrap;
+  font-weight: 700;
+}
+
+.totals {
+  margin-top: 10px;
+}
+
+.text-box textarea {
+  width: 100%;
+  min-height: 180px;
+  resize: vertical;
+  border: 1px solid var(--input-border);
+  border-radius: var(--radius-sm);
+  padding: 14px;
+  font-size: 16px;
+  line-height: 1.45;
+  font-family: inherit;
+  background: var(--input-bg);
+  color: var(--text);
+  transition: border-color var(--transition), box-shadow var(--transition);
+}
+
+.hint {
+  color: var(--muted);
+  font-size: 13px;
+  margin-top: 8px;
+  line-height: 1.45;
+}
+
+.empty-note {
+  color: var(--muted);
+  font-size: 14px;
+  text-align: center;
+  padding: 16px 8px;
+}
+
+.role-badge {
+  display: inline-block;
+  padding: 8px 12px;
+  border-radius: 999px;
+  background: var(--soft);
+  color: var(--accent);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.hidden {
+  display: none !important;
+}
+
+
+.muted {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.load-warning {
+  border: 1px solid var(--load-warning-border);
+  background: var(--load-warning-bg);
+  color: var(--danger-text);
+  border-radius: var(--radius);
+  padding: 12px 14px;
+  font-size: 14px;
+  line-height: 1.45;
+  font-weight: 600;
+}

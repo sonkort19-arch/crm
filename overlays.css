@@ -1,0 +1,33 @@
+/* OVERLAYS */
+
+/* Загрузка / ошибка Supabase */
+.crm-boot-overlay {
+  position: fixed;
+  left: 0;
+  right: 0;
+  top: var(--vv-offset-top);
+  width: 100%;
+  height: var(--vv-height);
+  box-sizing: border-box;
+  z-index: 200000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(4px);
+}
+
+.crm-boot-overlay.hidden {
+  display: none !important;
+}
+
+.crm-boot-overlay__card {
+  max-width: 420px;
+  width: 100%;
+}
+
+.crm-boot-overlay__card p {
+  margin: 0 0 12px;
+  line-height: 1.45;
+}

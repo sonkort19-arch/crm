@@ -1,0 +1,10 @@
+/* SETTINGS RESPONSIVE */
+
+@media (max-width: 520px) {
+  .percent-row,
+  .category-row,
+  .add-category-row {
+    grid-template-columns: 1fr;
+  }
+
+}

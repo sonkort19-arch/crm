@@ -1,0 +1,119 @@
+/* MODALS */
+
+.modal.hidden {
+  display: none !important;
+}
+
+.modal__backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.45);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+}
+
+[data-theme='dark'] .modal__backdrop {
+  background: rgba(0, 0, 0, 0.55);
+}
+
+.modal__panel {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: 520px;
+  max-height: min(calc(var(--vv-height) * 0.88), 640px);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-lg);
+}
+
+.modal__panel--sm {
+  max-width: 400px;
+}
+
+.modal__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 14px 14px 0;
+}
+
+.modal__title {
+  margin: 0;
+  font-size: 1.1rem;
+  line-height: 1.3;
+  padding-right: 8px;
+}
+
+.modal__close {
+  flex-shrink: 0;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0;
+  border-radius: 999px;
+  font-size: 1.5rem;
+  line-height: 1;
+}
+
+.modal__body {
+  padding: 12px 14px 16px;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  flex: 1;
+  min-height: 0;
+}
+
+.input-block--modal {
+  margin-top: 8px;
+}
+
+.input-block--modal textarea {
+  width: 100%;
+  margin-top: 4px;
+  resize: vertical;
+  min-height: 84px;
+  font: inherit;
+  color: var(--text);
+  background: var(--input-bg);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  padding: 12px;
+}
+
+.input-block--modal textarea:focus {
+  outline: none;
+  border-color: var(--focus-ring);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--focus-ring) 35%, transparent);
+}
+
+.modal__actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.modal__actions--stack {
+  grid-template-columns: 1fr;
+}
+
+.modal__actions .primary,
+.modal__actions .ghost {
+  width: 100%;
+}
+
+@media (min-width: 520px) {
+  .modal {
+    align-items: center;
+    padding: 24px;
+  }
+
+  .modal__panel {
+    border-radius: var(--radius);
+  }
+}
