@@ -2,7 +2,7 @@
 <html lang="ru" data-theme="light">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content" />
   <meta name="color-scheme" content="light dark" />
   <title>Too CRM</title>
   <link rel="icon" href="assets/favicon.svg" type="image/svg+xml" sizes="any" />
@@ -15,6 +15,47 @@
         var t = localStorage.getItem(k);
         if (t === 'dark' || t === 'light') document.documentElement.setAttribute('data-theme', t);
       } catch (e) {}
+    })();
+  </script>
+  <script>
+    (function () {
+      var root = document.documentElement;
+      function syncViewportVars() {
+        var vv = window.visualViewport;
+        if (!vv) {
+          root.style.setProperty('--vv-height', window.innerHeight + 'px');
+          root.style.setProperty('--vv-offset-top', '0px');
+          return;
+        }
+        root.style.setProperty('--vv-height', Math.round(vv.height) + 'px');
+        root.style.setProperty('--vv-offset-top', Math.round(vv.offsetTop) + 'px');
+      }
+
+      function syncDeferred() {
+        requestAnimationFrame(syncViewportVars);
+        setTimeout(syncViewportVars, 120);
+        setTimeout(syncViewportVars, 320);
+      }
+
+      syncViewportVars();
+      if (window.visualViewport) {
+        window.visualViewport.addEventListener('resize', syncViewportVars);
+        window.visualViewport.addEventListener('scroll', syncViewportVars);
+      }
+      window.addEventListener('resize', syncViewportVars);
+      window.addEventListener('orientationchange', function () {
+        setTimeout(syncViewportVars, 250);
+      });
+      window.addEventListener('focusin', function (e) {
+        var t = e.target;
+        if (!t || !t.tagName) return;
+        var tag = t.tagName;
+        if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') syncDeferred();
+      });
+      window.addEventListener('focusout', syncDeferred);
+      document.addEventListener('visibilitychange', function () {
+        if (!document.hidden) syncDeferred();
+      });
     })();
   </script>
   <!-- Шрифт Manrope: локальный manrope.css (без npm-зависимостей для рантайма). -->

@@ -54,6 +54,13 @@ export function schedulePersist() {
   }, DEBOUNCE_MS);
 }
 
+export async function persistNow() {
+  if (!client || typeof getStateFn !== 'function') return;
+  clearTimeout(persistTimer);
+  persistTimer = null;
+  await flushPersist();
+}
+
 async function flushPersist() {
   if (!client || !getStateFn) return;
   const { percentages, salary } = getStateFn();

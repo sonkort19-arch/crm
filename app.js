@@ -1,4 +1,4 @@
-import { initCrmCloud, schedulePersist, setStateGetter, isConfigured } from './crm-cloud.js';
+import { initCrmCloud, schedulePersist, persistNow, setStateGetter, isConfigured } from './crm-cloud.js';
 import {
   toNumber as toNumberCore,
   formatMoney as formatMoneyCore,
@@ -2397,6 +2397,17 @@ async function startup() {
     }
     setUiStatus('Не удалось сохранить в облако. Проверьте сеть.', 'danger');
   };
+
+  const flushOnBackground = () => {
+    persistNow().catch((err) => {
+      if (err && err.code === 'optimistic_conflict') return;
+      console.error('CRM cloud flush on background', err);
+    });
+  };
+  window.addEventListener('pagehide', flushOnBackground);
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') flushOnBackground();
+  });
 
   initTheme();
   initMobileNav();
