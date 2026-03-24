@@ -140,11 +140,12 @@ body {
 }
 
 .app-brand {
-  position: fixed;
-  top: calc(10px + env(safe-area-inset-top));
-  left: max(12px, env(safe-area-inset-left));
-  z-index: 55;
+  position: relative;
+  top: auto;
+  left: auto;
+  z-index: auto;
   pointer-events: auto;
+  margin: 0 0 8px;
 }
 
 .app-brand__title {
@@ -187,11 +188,12 @@ body {
 }
 
 .login-theme-btn {
-  position: fixed;
-  top: calc(10px + env(safe-area-inset-top));
-  left: max(12px, env(safe-area-inset-left));
-  z-index: 60;
+  position: relative;
+  top: auto;
+  left: auto;
+  z-index: auto;
   margin: 0;
+  margin-bottom: 8px;
   padding: 0;
   border: 0;
   background: transparent;
@@ -485,7 +487,7 @@ body.calculator-open #calculatorBtn.app-nav__btn:focus-visible {
   min-width: 0;
   display: grid;
   gap: 8px;
-  padding-top: calc(var(--app-brand-stack) - 8px);
+  padding-top: 0;
 }
 
 .calculator-card {
